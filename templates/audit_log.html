@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Audit log — MediCare Clinic{% endblock %}
+
+{% block topbar_actions %}
+<span>Signed in as {{ admin.full_name }}</span>
+<a class="back" href="{{ url_for('admin_dashboard') }}">Dashboard</a>
+<a class="back" href="{{ url_for('admin_logout') }}">Log out</a>
+{% endblock %}
+
+{% block content %}
+<div class="hero" style="padding-top:32px;">
+  <h1 style="font-size:26px;">Audit log</h1>
+  <p>Recent logins and significant actions across the clinic, most recent first.</p>
+</div>
+
+<div class="panel">
+  {% if entries %}
+  <div class="record-table-wrap">
+    <table class="record-table">
+      <thead>
+        <tr><th>Time</th><th>Role</th><th>User</th><th>Action</th><th>Details</th></tr>
+      </thead>
+      <tbody>
+        {% for e in entries %}
+        <tr class="{% if 'failed' in e.action %}row-alert{% endif %}">
+          <td>{{ e.created_at.strftime('%b %d, %H:%M:%S') }}</td>
+          <td>{{ e.role }}</td>
+          <td>{% if e.username %}#{{ e.username }}{% else %}—{% endif %}</td>
+          <td>{{ e.action.replace('_', ' ') }}</td>
+          <td>{{ e.details or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">
+    <div class="display">No activity logged yet</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

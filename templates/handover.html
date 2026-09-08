@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Shift handover — MediCare Clinic{% endblock %}
+
+{% block topbar_actions %}
+<span>Signed in as {{ nurse.full_name }}</span>
+<a class="back" href="{{ url_for('nursing') }}">Nursing station</a>
+<a class="back" href="{{ url_for('nurse_logout') }}">Log out</a>
+{% endblock %}
+
+{% block content %}
+<div class="hero" style="padding-top:32px;">
+  <h1 style="font-size:26px;">Shift handover</h1>
+  <p>Stability, pending items, and notes for every patient currently in the clinic — no digging through the full record.</p>
+</div>
+
+<div class="panel">
+  {% if entries %}
+    {% for e in entries %}
+    {% set f = e.file %}
+    <div class="record">
+      <div class="avatar">{{ f.patient.full_name[:1]|upper }}</div>
+      <div class="record-body">
+        <div class="record-name">
+          {{ f.patient.full_name }}
+          {% if f.priority == 'urgent' %}<span class="chip chip-urgent">Urgent</span>{% endif %}
+          <span class="chip chip-{{ e.vitals_state }}">
+            {{ {'fresh': 'Vitals current', 'stale': 'Vitals stale', 'missing': 'No vitals'}[e.vitals_state] }}
+          </span>
+        </div>
+        <div class="record-meta">{{ f.patient.age }} yrs · {{ f.patient.gender }} · Status: {{ f.status }}</div>
+
+        {% if f.vitals_recorded_at %}
+        <div class="record-notes">
+          {{ f.temperature }}°C · BP {{ f.blood_pressure }} · Pulse {{ f.pulse }} bpm
+          <span class="hint">recorded {{ f.vitals_recorded_at.strftime('%H:%M') }} by #{{ f.vitals_recorded_by }}</span>
+        </div>
+        {% endif %}
+
+        {% if f.doctor_notes %}
+        <div class="record-notes"><strong>Doctor:</strong> {{ f.doctor_notes }}</div>
+        {% endif %}
+
+        {% if e.pending %}
+        <ul class="pending-list">
+          {% for p in e.pending %}<li>{{ p }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if e.notes %}
+        <div class="handover-notes">
+          {% for n in e.notes %}
+          <div class="handover-note-item">
+            <span>{{ n.note }}</span>
+            <span class="hint">#{{ n.created_by }} · {{ n.created_at.strftime('%b %d, %H:%M') }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <details class="vitals-form">
+          <summary>Add handover note</summary>
+          <form method="POST" action="{{ url_for('add_handover_note', id_number=f.patient.id_number) }}">
+            <input type="hidden" name="next" value="{{ url_for('nursing_handover') }}">
+            <div class="field">
+              <label for="note-{{ f.patient.id_number }}">Note for the next shift</label>
+              <textarea id="note-{{ f.patient.id_number }}" name="note" rows="2" placeholder="e.g. Awaiting repeat BP at 18:00, family notified"></textarea>
+            </div>
+            <button type="submit" class="btn btn-secondary btn-small">Save note</button>
+          </form>
+        </details>
+      </div>
+      <span class="dot {% if f.priority == 'urgent' %}dot-urgent{% else %}dot-normal{% endif %}"></span>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty">
+      <div class="display">No active patients</div>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

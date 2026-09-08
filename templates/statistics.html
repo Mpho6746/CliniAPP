@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Statistics — MediCare Clinic{% endblock %}
+
+{% block content %}
+<div class="hero" style="padding-top:32px;">
+  <h1 style="font-size:26px;">Clinic statistics</h1>
+</div>
+
+<div class="panel">
+  <div class="stat-row">
+    <span class="stat-label">Total patients</span>
+    <span class="stat-value">{{ stats.total }}</span>
+  </div>
+  <div class="stat-row">
+    <span class="stat-label">Registered</span>
+    <span class="stat-value">{{ stats.registered }}</span>
+  </div>
+  <div class="stat-row">
+    <span class="stat-label">Evaluated</span>
+    <span class="stat-value">{{ stats.evaluated }}</span>
+  </div>
+  <div class="stat-row">
+    <span class="stat-label">Dispensed</span>
+    <span class="stat-value">{{ stats.dispensed }}</span>
+  </div>
+  <div class="stat-row">
+    <span class="stat-label">Urgent cases</span>
+    <span class="stat-value" style="color:var(--urgent)">{{ stats.urgent }}</span>
+  </div>
+</div>
+{% endblock %}

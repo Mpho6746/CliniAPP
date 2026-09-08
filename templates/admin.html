@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Admin — MediCare Clinic{% endblock %}
+
+{% block topbar_actions %}
+<span>Signed in as {{ admin.full_name }}</span>
+<a class="back" href="{{ url_for('admin_dashboard') }}">Dashboard</a>
+<a class="back" href="{{ url_for('admin_logout') }}">Log out</a>
+{% endblock %}
+
+{% block content %}
+<div class="hero" style="padding-top:32px;">
+  <h1 style="font-size:26px;">Admin</h1>
+</div>
+
+<div class="tabs">
+  <a class="tab {% if tab == 'register' %}active{% endif %}" href="{{ url_for('admin', tab='register') }}">Register patient</a>
+  <a class="tab {% if tab == 'list' %}active{% endif %}" href="{{ url_for('admin', tab='list') }}">Patient list ({{ files|length }})</a>
+  <a class="tab {% if tab == 'medications' %}active{% endif %}" href="{{ url_for('admin', tab='medications') }}">Medications ({{ medications|length }})</a>
+</div>
+
+{% if tab == 'register' %}
+<div class="panel">
+  <h2>Register a new patient</h2>
+  <form method="POST" action="{{ url_for('admin_register') }}">
+    <div class="field">
+      <label for="id_number">ID number (13 digits)</label>
+      <input type="text" id="id_number" name="id_number" inputmode="numeric" maxlength="13" required>
+    </div>
+    <div class="field">
+      <label for="full_name">Full name</label>
+      <input type="text" id="full_name" name="full_name" required>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="age">Age</label>
+        <input type="text" id="age" name="age" inputmode="numeric" required>
+      </div>
+      <div class="field">
+        <label for="gender">Gender</label>
+        <select id="gender" name="gender">
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label for="phone">Phone</label>
+      <input type="text" id="phone" name="phone" required>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="street">Street</label>
+        <input type="text" id="street" name="street">
+      </div>
+      <div class="field">
+        <label for="city">City</label>
+        <input type="text" id="city" name="city">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="province">Province</label>
+        <input type="text" id="province" name="province">
+      </div>
+      <div class="field">
+        <label for="postal_code">Postal code</label>
+        <input type="text" id="postal_code" name="postal_code">
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Register patient</button>
+  </form>
+</div>
+
+{% elif tab == 'medications' %}
+<div class="panel">
+  <h2>Add a medication</h2>
+  <p class="panel-sub">Drugs added here become available for doctors to prescribe from.</p>
+  <form method="POST" action="{{ url_for('admin_add_medication') }}">
+    <div class="field">
+      <label for="med_name">Name</label>
+      <input type="text" id="med_name" name="name" placeholder="e.g. Paracetamol" required>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="med_dosage">Common dosage</label>
+        <input type="text" id="med_dosage" name="common_dosage" placeholder="e.g. 500mg">
+      </div>
+      <div class="field">
+        <label for="med_form">Form</label>
+        <input type="text" id="med_form" name="form" placeholder="e.g. Tablet">
+      </div>
+    </div>
+    <div class="field">
+      <label for="med_category">Category</label>
+      <input type="text" id="med_category" name="category" placeholder="e.g. Analgesic">
+    </div>
+    <button type="submit" class="btn btn-primary">Add medication</button>
+  </form>
+</div>
+
+<div class="panel">
+  {% if medications %}
+    {% for m in medications %}
+    <div class="record">
+      <div class="avatar">{{ m.name[:1]|upper }}</div>
+      <div class="record-body">
+        <div class="record-name">{{ m.name }}</div>
+        <div class="record-meta">{{ m.common_dosage }} · {{ m.form }}{% if m.category %} · {{ m.category }}{% endif %}</div>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty">
+      <div class="display">No medications in the catalog yet</div>
+    </div>
+  {% endif %}
+</div>
+
+{% else %}
+<div class="panel">
+  {% if files %}
+    {% for f in files %}
+    <div class="record">
+      <div class="avatar">{{ f.patient.full_name[:1]|upper }}</div>
+      <div class="record-body">
+        <div class="record-name">{{ f.patient.full_name }}</div>
+        <div class="record-meta">{{ f.patient.age }} yrs · {{ f.patient.gender }} · Status: {{ f.status }}</div>
+      </div>
+      <span class="dot {% if f.priority == 'urgent' %}dot-urgent{% else %}dot-normal{% endif %}"></span>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty">
+      <div class="display">No patients registered yet</div>
+      <p>Use the Register patient tab to add the first one.</p>
+    </div>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

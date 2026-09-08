@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Records — MediCare Clinic{% endblock %}
+
+{% block content %}
+<div class="hero" style="padding-top:32px;">
+  <h1 style="font-size:26px;">Medical records</h1>
+</div>
+
+<form method="GET" action="{{ url_for('records') }}" style="margin-top:20px;">
+  <div class="field" style="margin-bottom:0;">
+    <input type="text" name="q" value="{{ query }}" placeholder="Search by name, ID number, or status...">
+  </div>
+</form>
+
+<div class="panel">
+  {% if files %}
+    {% for f in files %}
+    <div class="record">
+      <div class="avatar">{{ f.patient.full_name[:1]|upper }}</div>
+      <div class="record-body">
+        <div class="record-name">{{ f.patient.full_name }}</div>
+        <div class="record-meta">
+          ID: {{ f.patient.id_number }} · {{ f.patient.age }} yrs · {{ f.patient.gender }} · Priority: {{ f.priority }}
+        </div>
+        {% if f.doctor_notes %}
+        <div class="record-notes">Doctor notes: {{ f.doctor_notes }}</div>
+        {% endif %}
+      </div>
+      <span class="badge badge-{{ f.status }}">{{ f.status }}</span>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty">
+      <div class="display">No matching records</div>
+      <p>Try a different name, ID number, or status.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

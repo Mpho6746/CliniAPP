@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{{ file.patient.full_name }} — Vitals history{% endblock %}
+
+{% block topbar_actions %}
+<span>Signed in as {{ nurse.full_name }}</span>
+<a class="back" href="{{ url_for('nursing') }}">Nursing station</a>
+<a class="back" href="{{ url_for('nurse_logout') }}">Log out</a>
+{% endblock %}
+
+{% block content %}
+<div class="hero" style="padding-top:32px;">
+  <h1 style="font-size:26px;">{{ file.patient.full_name }} — vitals history</h1>
+  <p>Trend over the most recent readings. Rows in red were flagged as abnormal at the time.</p>
+</div>
+
+{% if chart_rows %}
+<div class="panel">
+  <h2>Trend</h2>
+  <p class="panel-sub">Temperature (lime) and pulse (blue), oldest to most recent</p>
+  <div class="vitals-chart">
+    {% for row in chart_rows %}
+    <div class="vitals-chart-col">
+      <div class="vitals-chart-bars">
+        <div class="vitals-bar vitals-bar-temp" style="height:{{ row.temp_pct if row.temp_pct is not none else 0 }}%" title="{{ row.reading.temperature }}°C"></div>
+        <div class="vitals-bar vitals-bar-pulse" style="height:{{ row.pulse_pct if row.pulse_pct is not none else 0 }}%" title="{{ row.reading.pulse }} bpm"></div>
+      </div>
+      <div class="vitals-chart-label">{{ row.reading.recorded_at.strftime('%H:%M') }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="panel">
+  <h2>Readings</h2>
+  {% if readings %}
+  <div class="record-table-wrap">
+    <table class="record-table">
+      <thead>
+        <tr><th>Time</th><th>Temp</th><th>BP</th><th>Pulse</th><th>Recorded by</th><th>Flags</th></tr>
+      </thead>
+      <tbody>
+        {% for r in readings %}
+        <tr class="{% if r.flags %}row-alert{% endif %}">
+          <td>{{ r.recorded_at.strftime('%b %d, %H:%M') }}</td>
+          <td>{{ r.temperature }}°C</td>
+          <td>{{ r.blood_pressure }}</td>
+          <td>{{ r.pulse }} bpm</td>
+          <td>#{{ r.recorded_by }}</td>
+          <td>{% if r.flags %}<span class="chip chip-urgent">⚠ {{ r.flags }}</span>{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">
+    <div class="display">No readings yet</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

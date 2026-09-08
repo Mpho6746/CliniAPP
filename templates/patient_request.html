@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Call a nurse — MediCare Clinic{% endblock %}
+
+{% block topbar_actions %}{% endblock %}
+
+{% block content %}
+<div class="hero" style="padding-top:32px;">
+  <h1 style="font-size:26px;">Hi {{ file.patient.full_name.split(' ')[0] }}, what do you need?</h1>
+  <p>Tap a button below and a nurse will be notified right away.</p>
+</div>
+
+<div class="panel">
+  <div class="request-grid">
+    {% for key, label in categories %}
+    <form method="POST" action="{{ url_for('submit_patient_request', id_number=file.patient.id_number) }}">
+      <input type="hidden" name="category" value="{{ key }}">
+      <button type="submit" class="request-btn">{{ label }}</button>
+    </form>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

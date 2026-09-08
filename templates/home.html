@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}MediCare Clinic{% endblock %}
+{% block topbar_actions %}{% endblock %}
+
+{% block content %}
+<div class="hero">
+  <h1>Where do you need to go?</h1>
+  <p>Pick a station below to register a patient, review a file, or check on today's numbers.</p>
+</div>
+
+<a class="station" href="{{ url_for('admin_dashboard') }}">
+  <div class="station-icon" style="background:#1B2033">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 20V10M12 20V4M20 20v-7" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+  </div>
+  <div class="station-body">
+    <div class="station-name">Admin Dashboard</div>
+    <div class="station-desc">Live overview of attendance, waiting times, and staff</div>
+  </div>
+  <div class="station-open">Open</div>
+</a>
+
+<div class="directory">
+
+  <a class="station" href="{{ url_for('admin') }}">
+    <div class="station-icon" style="background:#3E7A3E">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" stroke="white" stroke-width="2" stroke-linecap="round"/><circle cx="9" cy="7" r="4" stroke="white" stroke-width="2"/><path d="M19 8v6M22 11h-6" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+    <div class="station-body">
+      <div class="station-name">Admin</div>
+      <div class="station-desc">Register new patients and browse the full patient list</div>
+    </div>
+    <div class="station-open">Open</div>
+  </a>
+
+  <a class="station" href="{{ url_for('doctor_auth') }}">
+    <div class="station-icon" style="background:var(--primary)">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M9 3v4a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2V3" stroke="white" stroke-width="2"/><rect x="4" y="7" width="16" height="14" rx="2" stroke="white" stroke-width="2"/><path d="M12 12v4M10 14h4" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+    <div class="station-body">
+      <div class="station-name">Doctor</div>
+      <div class="station-desc">Log in to review patients, add notes, and flag urgent cases</div>
+    </div>
+    <div class="station-open">Open</div>
+  </a>
+
+  <a class="station" href="{{ url_for('nursing') }}">
+    <div class="station-icon" style="background:#B14A72">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.35-9.5-8.5C.7 8.9 2.6 5 6.3 5c2 0 3.4 1 4.7 2.6C12.3 6 13.7 5 15.7 5c3.7 0 5.6 3.9 3.8 7.5C21 16.65 12 21 12 21z" stroke="white" stroke-width="2" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="station-body">
+      <div class="station-name">Nursing</div>
+      <div class="station-desc">See every patient currently in the clinic and their status</div>
+    </div>
+    <div class="station-open">Open</div>
+  </a>
+
+  <a class="station" href="{{ url_for('pharmacist') }}">
+    <div class="station-icon" style="background:#C07A21">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="16" rx="3" stroke="white" stroke-width="2"/><path d="M9 9h6v6H9z" stroke="white" stroke-width="2" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="station-body">
+      <div class="station-name">Pharmacist</div>
+      <div class="station-desc">Dispense medication for patients a doctor has evaluated</div>
+    </div>
+    <div class="station-open">Open</div>
+  </a>
+
+  <a class="station" href="{{ url_for('records') }}">
+    <div class="station-icon" style="background:#6A4E9C">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 4h16v16H4z" stroke="white" stroke-width="2" stroke-linejoin="round"/><path d="M8 9h8M8 13h8M8 17h5" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+    <div class="station-body">
+      <div class="station-name">Records</div>
+      <div class="station-desc">Search medical records by name, ID number, or status</div>
+    </div>
+    <div class="station-open">Open</div>
+  </a>
+
+  <a class="station" href="{{ url_for('statistics') }}">
+    <div class="station-icon" style="background:var(--teal)">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 20V10M12 20V4M20 20v-7" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+    <div class="station-body">
+      <div class="station-name">Statistics</div>
+      <div class="station-desc">A snapshot of how many patients are at each stage today</div>
+    </div>
+    <div class="station-open">Open</div>
+  </a>
+
+</div>
+{% endblock %}

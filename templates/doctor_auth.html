@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Doctor Portal — MediCare Clinic{% endblock %}
+
+{% block content %}
+<div class="hero" style="padding-top:32px;">
+  <h1 style="font-size:26px;">Doctor portal</h1>
+</div>
+
+<div class="tabs">
+  <a class="tab {% if tab == 'login' %}active{% endif %}" href="{{ url_for('doctor_auth', tab='login') }}">Log in</a>
+  <a class="tab {% if tab == 'register' %}active{% endif %}" href="{{ url_for('doctor_auth', tab='register') }}">Register</a>
+</div>
+
+{% if tab == 'register' %}
+<div class="panel">
+  <h2>Create a doctor account</h2>
+  <form method="POST" action="{{ url_for('doctor_register') }}">
+    <div class="field">
+      <label for="full_name">Full name</label>
+      <input type="text" id="full_name" name="full_name" required>
+    </div>
+    <div class="field">
+      <label for="username">Username (6 digits)</label>
+      <input type="text" id="username" name="username" inputmode="numeric" maxlength="6" placeholder="123456" required>
+    </div>
+    <div class="field">
+      <label for="pin">PIN (4 digits)</label>
+      <input type="password" id="pin" name="pin" inputmode="numeric" maxlength="4" placeholder="0000" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Register account</button>
+  </form>
+</div>
+
+{% else %}
+<div class="panel">
+  <h2>Log in</h2>
+  <form method="POST" action="{{ url_for('doctor_login') }}">
+    <div class="field">
+      <label for="username">Username (6 digits)</label>
+      <input type="text" id="username" name="username" inputmode="numeric" maxlength="6" placeholder="123456" required>
+    </div>
+    <div class="field">
+      <label for="pin">PIN (4 digits)</label>
+      <input type="password" id="pin" name="pin" inputmode="numeric" maxlength="4" placeholder="0000" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Log in to portal</button>
+  </form>
+  <p class="hint" style="margin-top:14px;">No account yet? Use the Register tab above.</p>
+</div>
+{% endif %}
+{% endblock %}

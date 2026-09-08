@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Nurse — MediCare Clinic{% endblock %}
+
+{% block content %}
+<div class="hero" style="padding-top:32px;">
+  <h1 style="font-size:26px;">Nurse sign-in</h1>
+  <p>Log in to record vitals and manage your patients, or register as a new nurse.</p>
+</div>
+
+<div class="tabs">
+  <a class="tab {% if tab == 'login' %}active{% endif %}" href="{{ url_for('nurse_auth', tab='login') }}">Log in</a>
+  <a class="tab {% if tab == 'register' %}active{% endif %}" href="{{ url_for('nurse_auth', tab='register') }}">Register</a>
+</div>
+
+{% if tab == 'register' %}
+<div class="panel">
+  <h2>Register as a nurse</h2>
+  <form method="POST" action="{{ url_for('nurse_register') }}">
+    <div class="field">
+      <label for="full_name">Full name</label>
+      <input type="text" id="full_name" name="full_name" required>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="reg_username">Username (6 digits)</label>
+        <input type="text" id="reg_username" name="username" inputmode="numeric" maxlength="6" required>
+      </div>
+      <div class="field">
+        <label for="reg_pin">PIN (4 digits)</label>
+        <input type="password" id="reg_pin" name="pin" inputmode="numeric" maxlength="4" required>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Register</button>
+  </form>
+</div>
+{% else %}
+<div class="panel">
+  <h2>Log in</h2>
+  <form method="POST" action="{{ url_for('nurse_login') }}">
+    <div class="field-row">
+      <div class="field">
+        <label for="login_username">Username (6 digits)</label>
+        <input type="text" id="login_username" name="username" inputmode="numeric" maxlength="6" required>
+      </div>
+      <div class="field">
+        <label for="login_pin">PIN (4 digits)</label>
+        <input type="password" id="login_pin" name="pin" inputmode="numeric" maxlength="4" required>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary">Log in</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

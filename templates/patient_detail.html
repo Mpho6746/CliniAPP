@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}{{ file.patient.full_name }} — MediCare Clinic{% endblock %}
+
+{% block topbar_actions %}
+<a class="back" href="{{ url_for('doctor_panel') }}">Back to patients</a>
+{% endblock %}
+
+{% block content %}
+<div class="hero" style="padding-top:32px; display:grid; grid-auto-flow:column; grid-template-columns:1fr auto; align-items:center;">
+  <h1 style="font-size:26px;">{{ file.patient.full_name }}</h1>
+  <form method="POST" action="{{ url_for('patient_detail', id_number=file.patient.id_number) }}">
+    <input type="hidden" name="action" value="toggle_priority">
+    {% if file.priority == 'urgent' %}
+      <button type="submit" class="btn btn-small btn-danger-outline">Marked urgent — click to clear</button>
+    {% else %}
+      <button type="submit" class="btn btn-small btn-secondary">Flag as urgent</button>
+    {% endif %}
+  </form>
+</div>
+
+<div class="panel">
+  <h2>Patient information</h2>
+  <dl class="info-grid">
+    <dt>Age</dt><dd>{{ file.patient.age }}</dd>
+    <dt>Gender</dt><dd>{{ file.patient.gender }}</dd>
+    <dt>Phone</dt><dd>{{ file.patient.phone }}</dd>
+    <dt>Address</dt><dd>{{ file.patient.street }}{% if file.patient.city %}, {{ file.patient.city }}{% endif %}</dd>
+  </dl>
+</div>
+
+<div class="panel">
+  <h2>Vitals</h2>
+  {% if file.vitals_recorded_at %}
+  <dl class="info-grid">
+    <dt>Temperature</dt><dd>{{ file.temperature }}°C</dd>
+    <dt>Blood pressure</dt><dd>{{ file.blood_pressure }}</dd>
+    <dt>Pulse</dt><dd>{{ file.pulse }} bpm</dd>
+    <dt>Recorded</dt><dd>{{ file.vitals_recorded_at.strftime('%b %d, %H:%M') }} by #{{ file.vitals_recorded_by }}</dd>
+  </dl>
+  {% else %}
+  <p class="panel-sub" style="margin-bottom:0;">No vitals recorded yet. A nurse can record these from the Nursing station.</p>
+  {% endif %}
+</div>
+
+<div class="panel">
+  <h2>Status</h2>
+  <div style="display:grid; grid-auto-flow:column; grid-template-columns:1fr auto; align-items:center;">
+    <span>Current status: <strong>{{ file.status }}</strong></span>
+    <span class="badge badge-{{ file.priority == 'urgent' and 'evaluated' or 'registered' }}">{{ file.priority }}</span>
+  </div>
+</div>
+
+<form method="POST" action="{{ url_for('patient_detail', id_number=file.patient.id_number) }}">
+  <input type="hidden" name="action" value="suggest">
+  <div class="panel">
+    <h2>Symptoms</h2>
+    <p class="panel-sub">Describe what the patient reports, then request diagnosis suggestions to consider alongside your own assessment.</p>
+    <div class="field">
+      <textarea name="symptoms" rows="3" placeholder="e.g. burning when urinating, frequent urges, lower abdominal pain">{{ file.symptoms }}</textarea>
+    </div>
+    <button type="submit" class="btn btn-small btn-secondary">Suggest possible diagnoses</button>
+
+    {% if suggestions is not none %}
+      {% if suggestions %}
+      <div style="margin-top:18px; display:grid; gap:10px;">
+        {% for s in suggestions %}
+        <div style="display:grid; grid-template-columns:1fr auto; align-items:center; gap:12px;">
+          <div>
+            <div style="font-weight:600; font-size:14px;">{{ s.diagnosis }}</div>
+            <div style="height:6px; border-radius:3px; background:var(--border); margin-top:4px; overflow:hidden;">
+              <div style="height:100%; width:{{ s.confidence }}%; background:var(--primary); border-radius:3px;"></div>
+            </div>
+          </div>
+          <div style="font-size:13px; color:var(--muted); width:48px; text-align:right;">{{ s.confidence }}%</div>
+        </div>
+        {% endfor %}
+        <p class="hint" style="margin-top:0;">{{ diagnosis_disclaimer }}</p>
+      </div>
+      {% endif %}
+    {% endif %}
+  </div>
+</form>
+
+<div class="panel">
+  <h2>Prescriptions</h2>
+  <form method="POST" action="{{ url_for('patient_detail', id_number=file.patient.id_number) }}">
+    <input type="hidden" name="action" value="prescribe">
+    <div class="field">
+      <label for="medication_id">Medication</label>
+      <select id="medication_id" name="medication_id" required>
+        <option value="">Select a medication…</option>
+        {% for m in medications %}
+        <option value="{{ m.id }}">{{ m.name }} ({{ m.common_dosage }}, {{ m.form }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="dosage">Dosage</label>
+        <input type="text" id="dosage" name="dosage" placeholder="defaults to common dosage">
+      </div>
+      <div class="field">
+        <label for="frequency">Frequency</label>
+        <input type="text" id="frequency" name="frequency" placeholder="e.g. Every 8 hours">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="duration">Duration</label>
+        <input type="text" id="duration" name="duration" placeholder="e.g. 5 days">
+      </div>
+      <div class="field">
+        <label for="instructions">Instructions</label>
+        <input type="text" id="instructions" name="instructions" placeholder="e.g. Take with food">
+      </div>
+    </div>
+    <button type="submit" class="btn btn-small btn-secondary">Add prescription</button>
+  </form>
+
+  {% if prescriptions %}
+  <div style="margin-top:18px; display:grid; gap:10px;">
+    {% for p in prescriptions %}
+    <div class="record-notes">
+      <strong>{{ p.medication.name }}</strong> — {{ p.dosage }}{% if p.frequency %}, {{ p.frequency }}{% endif %}{% if p.duration %}, {{ p.duration }}{% endif %}
+      {% if p.instructions %}<br>{{ p.instructions }}{% endif %}
+      <span class="hint">prescribed {{ p.prescribed_at.strftime('%b %d, %H:%M') }} by #{{ p.prescribed_by }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="panel-sub" style="margin-bottom:0; margin-top:14px;">No prescriptions yet.</p>
+  {% endif %}
+</div>
+
+<form method="POST" action="{{ url_for('patient_detail', id_number=file.patient.id_number) }}">
+  <input type="hidden" name="action" value="update">
+  <div class="panel">
+    <h2>Medical notes</h2>
+    <div class="field">
+      <textarea name="doctor_notes" rows="6" placeholder="Enter diagnosis and treatment plan...">{{ file.doctor_notes }}</textarea>
+    </div>
+  </div>
+  <div style="margin-top:20px;">
+    <button type="submit" class="btn btn-primary">Update patient file</button>
+  </div>
+</form>
+{% endblock %}

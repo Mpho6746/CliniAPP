@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard — MediCare Clinic</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+</head>
+<body class="dash">
+
+<div class="dash-topbar">
+  <div class="dash-brand">
+    <span class="dash-brand-mark">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 3v18M3 12h18" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg>
+    </span>
+    MediCare Admin
+  </div>
+  <div class="dash-topbar-right">
+    <a class="dash-nav-back" href="{{ url_for('audit_log_page') }}">Audit log</a>
+    <a class="dash-nav-back" href="{{ url_for('admin_logout') }}">Log out</a>
+    <div class="dash-avatar">{{ admin.full_name[:1]|upper }}</div>
+  </div>
+</div>
+
+<div class="dash-body">
+
+  <div class="dash-main">
+
+    <div class="dash-card">
+      <div class="dash-card-head">
+        <div>
+          <h3>Quick actions</h3>
+          <div class="dash-card-sub">Common tasks, one click away</div>
+        </div>
+      </div>
+      <div class="quick-actions">
+        <a class="quick-action" href="{{ url_for('admin', tab='register') }}">
+          <span class="quick-action-icon">➕</span>
+          <span>Register patient</span>
+        </a>
+        <a class="quick-action" href="{{ url_for('records') }}">
+          <span class="quick-action-icon">📋</span>
+          <span>View patient records</span>
+        </a>
+        <a class="quick-action" href="{{ url_for('records', q='urgent') }}">
+          <span class="quick-action-icon">🚨</span>
+          <span>View urgent cases</span>
+        </a>
+        <a class="quick-action" href="{{ url_for('pharmacist') }}">
+          <span class="quick-action-icon">💊</span>
+          <span>View pending prescriptions</span>
+        </a>
+        <a class="quick-action" href="{{ url_for('statistics') }}">
+          <span class="quick-action-icon">📊</span>
+          <span>Generate report</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="kpi-row">
+      <div class="dash-card">
+        <div class="kpi-value">{{ total }}</div>
+        <div class="kpi-label">Total patients</div>
+        <div class="kpi-segments">
+          <div class="seg-registered" style="width:{{ status_pct.registered }}%"></div>
+          <div class="seg-evaluated" style="width:{{ status_pct.evaluated }}%"></div>
+          <div class="seg-dispensed" style="width:{{ status_pct.dispensed }}%"></div>
+        </div>
+        <div class="kpi-legend">
+          <span><span class="kpi-dot" style="background:var(--d-blue)"></span>Registered</span>
+          <span><span class="kpi-dot" style="background:var(--d-orange)"></span>Evaluated</span>
+          <span><span class="kpi-dot" style="background:var(--d-lime)"></span>Dispensed</span>
+        </div>
+      </div>
+
+      <div class="dash-card">
+        <div class="kpi-value" style="color:var(--d-red)">{{ urgent }}</div>
+        <div class="kpi-label">Urgent cases right now</div>
+        <div class="kpi-segments">
+          <div style="width:{{ (urgent / total * 100) if total else 0 }}%; background:var(--d-red);"></div>
+        </div>
+        <div class="kpi-legend">
+          <span><span class="kpi-dot" style="background:var(--d-red)"></span>{{ urgent }} of {{ total }} patients flagged urgent</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-row-2">
+      <div class="dash-card">
+        <div class="dash-card-head">
+          <div>
+            <h3>Patient attendance</h3>
+            <div class="dash-card-sub">Registrations over the last 28 days</div>
+          </div>
+        </div>
+        <div class="heatmap">
+          {% for day in attendance %}
+          <div class="heat-cell heat-{{ day.level }}" title="{{ day.date }}: {{ day.count }} registered"></div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="dash-card">
+        <div class="dash-card-head">
+          <div>
+            <h3>Patient waiting time</h3>
+            <div class="dash-card-sub">Minutes waited, patients still in queue</div>
+          </div>
+        </div>
+        {% if waiting %}
+        <div class="wait-list">
+          {% for w in waiting %}
+          <div class="wait-row">
+            <div class="wait-name">{{ w.name }}</div>
+            <div class="wait-bar-track"><div class="wait-bar-fill" style="width:{{ w.pct }}%"></div></div>
+            <div class="wait-minutes">{{ w.minutes }} min</div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-note">No one is currently waiting.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="dash-row-2">
+      <div class="dash-card">
+        <div class="dash-card-head">
+          <div>
+            <h3>Registrations by day</h3>
+            <div class="dash-card-sub">All-time, by day of the week</div>
+          </div>
+        </div>
+        <div class="bar-chart">
+          {% for d in weekday_data %}
+          <div class="bar-col">
+            <div class="bar-fill" style="height:{{ d.pct }}%"></div>
+            <div class="bar-label">{{ d.label }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="dash-card">
+        <div class="dash-card-head">
+          <div>
+            <h3>Status</h3>
+            <div class="dash-card-sub">Where every file stands today</div>
+          </div>
+        </div>
+        <div class="donut-wrap">
+          <div class="donut" style="background: conic-gradient(
+            var(--d-blue) 0% {{ status_pct.registered }}%,
+            var(--d-orange) {{ status_pct.registered }}% {{ status_pct.registered + status_pct.evaluated }}%,
+            var(--d-lime) {{ status_pct.registered + status_pct.evaluated }}% 100%);"></div>
+          <div class="donut-legend">
+            <span><span class="kpi-dot" style="background:var(--d-blue)"></span>Registered — {{ registered }}</span>
+            <span><span class="kpi-dot" style="background:var(--d-orange)"></span>Evaluated — {{ evaluated }}</span>
+            <span><span class="kpi-dot" style="background:var(--d-lime)"></span>Dispensed — {{ dispensed }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-card">
+      <div class="dash-card-head">
+        <h3>Staff information</h3>
+        <div class="staff-search">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#8A90A6" stroke-width="2"/><path d="M21 21l-4-4" stroke="#8A90A6" stroke-width="2" stroke-linecap="round"/></svg>
+          Search
+        </div>
+      </div>
+      {% if staff %}
+      <table class="staff-table">
+        <thead>
+          <tr><th>Name</th><th>Status</th><th>Patients evaluated</th></tr>
+        </thead>
+        <tbody>
+          {% for s in staff %}
+          <tr>
+            <td>
+              <div class="staff-name-cell">
+                <div class="staff-initial">{{ s.name[:1]|upper }}</div>
+                <div>
+                  <div>Dr. {{ s.name }}</div>
+                  <div class="staff-username">#{{ s.username }}</div>
+                </div>
+              </div>
+            </td>
+            <td><span class="badge-active">Active</span></td>
+            <td>{{ s.evaluated }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty-note">No doctors registered yet.</div>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <div class="dash-side">
+    <div class="dash-card">
+      <div class="dash-card-head">
+        <div>
+          <h3>Stations</h3>
+          <div class="dash-card-sub">Jump to any part of the clinic</div>
+        </div>
+      </div>
+      <div class="station-nav">
+        <a class="station-nav-item" href="{{ url_for('admin') }}">
+          <span class="station-nav-icon" style="background:#3E7A3E">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" stroke="white" stroke-width="2" stroke-linecap="round"/><circle cx="9" cy="7" r="4" stroke="white" stroke-width="2"/><path d="M19 8v6M22 11h-6" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+          </span>
+          <span>
+            <span class="station-nav-name">Admin</span>
+            <span class="station-nav-desc">Register patients, view list</span>
+          </span>
+        </a>
+        <a class="station-nav-item" href="{{ url_for('doctor_auth') }}">
+          <span class="station-nav-icon" style="background:var(--d-blue)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 3v4a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2V3" stroke="white" stroke-width="2"/><rect x="4" y="7" width="16" height="14" rx="2" stroke="white" stroke-width="2"/><path d="M12 12v4M10 14h4" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+          </span>
+          <span>
+            <span class="station-nav-name">Doctor</span>
+            <span class="station-nav-desc">Review patients, add notes</span>
+          </span>
+        </a>
+        <a class="station-nav-item" href="{{ url_for('nurse_auth') }}">
+          <span class="station-nav-icon" style="background:#B14A72">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.35-9.5-8.5C.7 8.9 2.6 5 6.3 5c2 0 3.4 1 4.7 2.6C12.3 6 13.7 5 15.7 5c3.7 0 5.6 3.9 3.8 7.5C21 16.65 12 21 12 21z" stroke="white" stroke-width="2" stroke-linejoin="round"/></svg>
+          </span>
+          <span>
+            <span class="station-nav-name">Nursing</span>
+            <span class="station-nav-desc">See every patient's status</span>
+          </span>
+        </a>
+        <a class="station-nav-item" href="{{ url_for('pharmacist') }}">
+          <span class="station-nav-icon" style="background:#C07A21">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="16" rx="3" stroke="white" stroke-width="2"/><path d="M9 9h6v6H9z" stroke="white" stroke-width="2" stroke-linejoin="round"/></svg>
+          </span>
+          <span>
+            <span class="station-nav-name">Pharmacist</span>
+            <span class="station-nav-desc">Dispense evaluated orders</span>
+          </span>
+        </a>
+        <a class="station-nav-item" href="{{ url_for('records') }}">
+          <span class="station-nav-icon" style="background:#6A4E9C">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 4h16v16H4z" stroke="white" stroke-width="2" stroke-linejoin="round"/><path d="M8 9h8M8 13h8M8 17h5" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+          </span>
+          <span>
+            <span class="station-nav-name">Records</span>
+            <span class="station-nav-desc">Search by name, ID, status</span>
+          </span>
+        </a>
+        <a class="station-nav-item" href="{{ url_for('statistics') }}">
+          <span class="station-nav-icon" style="background:var(--d-purple)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 20V10M12 20V4M20 20v-7" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+          </span>
+          <span>
+            <span class="station-nav-name">Statistics</span>
+            <span class="station-nav-desc">Snapshot of every stage</span>
+          </span>
+        </a>
+      </div>
+    </div>
+
+    <div class="dash-card">
+      <div class="dash-card-head">
+        <div>
+          <h3>Today's queue</h3>
+          <div class="dash-card-sub">Not yet dispensed, urgent first</div>
+        </div>
+      </div>
+      {% if queue %}
+        {% for f in queue %}
+        <div class="queue-item {% if f.priority == 'urgent' %}urgent{% endif %}">
+          <div class="queue-name">{{ f.patient.full_name }}</div>
+          <div class="queue-meta">
+            <span class="kpi-dot" style="background: {{ 'var(--d-red)' if f.priority == 'urgent' else 'var(--d-green)' }}"></span>
+            {{ f.status }} · registered {{ f.registered_at.strftime('%b %d, %H:%M') }}
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+      <div class="empty-note">Nothing in the queue.</div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
