@@ -37,6 +37,7 @@ from models import (
     add_lab_result,
     add_medical_aid_scheme,
     add_prescription,
+    add_sick_note,
     add_tariff,
     age_gender_breakdown,
     appointment_counts_for_month,
@@ -63,6 +64,7 @@ from models import (
     get_dashboard_layout,
     get_patient,
     get_settings,
+    get_sick_note,
     get_ticket,
     has_access,
     is_overdue,
@@ -85,6 +87,7 @@ from models import (
     patient_lab_results,
     patient_missing_fields,
     patient_prescriptions,
+    patient_sick_notes,
     PATIENT_STATUSES,
     patient_number_taken,
     recent_activity,
@@ -918,6 +921,7 @@ def admin_patient_profile(patient_id):
         consultations=patient_consultations(patient.id),
         prescriptions=patient_prescriptions(patient.id),
         lab_results=patient_lab_results(patient.id),
+        sick_notes=patient_sick_notes(patient.id),
         missing_fields=patient_missing_fields(patient),
         overdue=is_overdue(patient),
     )
@@ -1533,6 +1537,7 @@ def doctor_patient_detail(patient_id):
         consultations=patient_consultations(patient.id),
         prescriptions=patient_prescriptions(patient.id),
         lab_results=patient_lab_results(patient.id),
+        sick_notes=patient_sick_notes(patient.id),
         missing_fields=patient_missing_fields(patient),
         overdue=is_overdue(patient),
         ai_configured=ai_assistant.is_configured(),
@@ -1571,11 +1576,73 @@ def doctor_ai_suggestions(patient_id):
         consultations=patient_consultations(patient.id),
         prescriptions=patient_prescriptions(patient.id),
         lab_results=patient_lab_results(patient.id),
+        sick_notes=patient_sick_notes(patient.id),
         missing_fields=patient_missing_fields(patient),
         overdue=is_overdue(patient),
         ai_configured=ai_assistant.is_configured(),
         ai_suggestions=ai_suggestions,
         notes_draft=notes_draft,
+    )
+
+
+@app.route("/doctor/patients/<int:patient_id>/sick-note", methods=["POST"])
+def doctor_sick_note_create(patient_id):
+    redirect_response = require_doctor("patients", "write")
+    if redirect_response:
+        return redirect_response
+    _, staff = current_staff()
+
+    patient = get_patient(patient_id)
+    if patient is None:
+        flash("Patient not found.", "error")
+        return redirect(url_for("doctor_patients"))
+
+    date_from_raw = request.form.get("date_from", "").strip()
+    date_to_raw = request.form.get("date_to", "").strip()
+    reason = request.form.get("reason", "").strip()
+
+    errors = []
+    date_from = date_to = None
+    try:
+        date_from = datetime.strptime(date_from_raw, "%Y-%m-%d").date()
+    except ValueError:
+        errors.append("Enter a valid start date.")
+    try:
+        date_to = datetime.strptime(date_to_raw, "%Y-%m-%d").date()
+    except ValueError:
+        errors.append("Enter a valid end date.")
+    if date_from and date_to and date_to < date_from:
+        errors.append("End date must be on or after the start date.")
+
+    if errors:
+        for e in errors:
+            flash(e, "error")
+        return redirect(url_for("doctor_patient_detail", patient_id=patient.id))
+
+    note = add_sick_note(patient.id, staff.id, date_from, date_to, reason)
+    flash("Sick note generated.", "success")
+    return redirect(url_for("doctor_sick_note_print", patient_id=patient.id, note_id=note.id))
+
+
+@app.route("/doctor/patients/<int:patient_id>/sick-note/<int:note_id>/print")
+def doctor_sick_note_print(patient_id, note_id):
+    redirect_response = require_doctor("patients", "view")
+    if redirect_response:
+        return redirect_response
+
+    patient = get_patient(patient_id)
+    note = get_sick_note(note_id)
+    if patient is None or note is None or note.patient_id != patient.id:
+        flash("Sick note not found.", "error")
+        return redirect(url_for("doctor_patients"))
+
+    return render_template(
+        "sick_note_print.html",
+        patient=patient,
+        note=note,
+        doctor=note.doctor,
+        hospital=current_user(),
+        settings=get_settings(),
     )
 
 

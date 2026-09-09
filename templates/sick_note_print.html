@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}Sick Note — CliniApp{% endblock %}
+{% block page_class %}shell{% endblock %}
+
+{% block content %}
+<div class="print-toolbar no-print">
+  <button type="button" class="btn btn-primary" onclick="window.print();">{{ ui.icon('file', 16) }} Print / Save as PDF</button>
+  <a href="{{ url_for('doctor_patient_detail', patient_id=patient.id) }}" class="btn btn-secondary">Back to patient</a>
+</div>
+
+<div class="shell-container print-container">
+  <div class="print-header">
+    <h1>{{ hospital.hospital_name }}</h1>
+    <p class="sub">{{ settings.address }}{% if settings.phone_number %} · {{ settings.phone_number }}{% endif %}</p>
+  </div>
+
+  <h2 style="text-align:center; margin-bottom:28px;">Medical Certificate</h2>
+
+  <p>
+    This is to certify that <strong>{{ patient.full_name }}</strong>
+    (Patient #{{ patient.patient_number }}{% if patient.date_of_birth %}, born {{ patient.date_of_birth }}{% endif %})
+    was examined at this practice and found to be unfit for work / school from
+    <strong>{{ note.date_from.strftime('%Y-%m-%d') }}</strong> to
+    <strong>{{ note.date_to.strftime('%Y-%m-%d') }}</strong> inclusive, due to: {{ note.reason }}.
+  </p>
+
+  <p style="margin-top:28px;">Issued on {{ note.created_at.strftime('%Y-%m-%d') }}.</p>
+
+  <div style="margin-top:64px;">
+    <p style="border-top:1px solid var(--ink); width:280px; padding-top:6px; margin-bottom:2px;">{{ doctor.full_name }}</p>
+    {% if doctor.qualification %}<p class="sub" style="margin:0;">{{ doctor.qualification }}</p>{% endif %}
+    {% if doctor.license_number %}<p class="sub" style="margin:0;">Practice / registration number: {{ doctor.license_number }}</p>{% endif %}
+  </div>
+</div>
+{% endblock %}

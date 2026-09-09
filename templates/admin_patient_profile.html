@@ -131,5 +131,33 @@
     <div class="empty-state">No lab results recorded yet.</div>
     {% endif %}
   </div>
+
+  <div class="panel" style="margin-top:20px;">
+    <h2 style="margin-top:0;">Sick note history</h2>
+    {% if sick_notes %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Issued</th>
+          <th>Period</th>
+          <th>Reason</th>
+          <th>Doctor</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for n in sick_notes %}
+        <tr>
+          <td>{{ n.created_at.strftime('%Y-%m-%d') }}</td>
+          <td>{{ n.date_from.strftime('%Y-%m-%d') }} – {{ n.date_to.strftime('%Y-%m-%d') }}</td>
+          <td>{{ n.reason }}</td>
+          <td>{{ n.doctor.full_name }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">No sick notes issued yet.</div>
+    {% endif %}
+  </div>
 </div>
 {% endblock %}

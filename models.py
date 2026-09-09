@@ -1050,3 +1050,36 @@ def delete_medical_aid_rate(rate_id: int) -> None:
     if rate:
         db.session.delete(rate)
         db.session.commit()
+
+
+# -------------------- Sick notes --------------------
+
+class SickNote(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey("patient.id"), nullable=False)
+    doctor_id = db.Column(db.Integer, db.ForeignKey("staff.id"), nullable=False)
+    date_from = db.Column(db.Date, nullable=False)
+    date_to = db.Column(db.Date, nullable=False)
+    reason = db.Column(db.String(300), nullable=False, default="Medical reasons")
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+    patient = db.relationship("Patient")
+    doctor = db.relationship("Staff", foreign_keys=[doctor_id])
+
+
+def add_sick_note(patient_id: int, doctor_id: int, date_from, date_to, reason: str = "") -> SickNote:
+    note = SickNote(
+        patient_id=patient_id, doctor_id=doctor_id, date_from=date_from, date_to=date_to,
+        reason=reason.strip() or "Medical reasons",
+    )
+    db.session.add(note)
+    db.session.commit()
+    return note
+
+
+def patient_sick_notes(patient_id: int):
+    return SickNote.query.filter_by(patient_id=patient_id).order_by(SickNote.created_at.desc()).all()
+
+
+def get_sick_note(note_id: int):
+    return db.session.get(SickNote, note_id)

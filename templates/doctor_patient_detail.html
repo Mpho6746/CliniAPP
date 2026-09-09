@@ -90,6 +90,55 @@
   </div>
 
   <div class="panel" style="margin-top:20px;">
+    <h2 style="margin-top:0;">Generate sick note</h2>
+    <form method="POST" action="{{ url_for('doctor_sick_note_create', patient_id=patient.id) }}" style="display:grid; grid-template-columns: 1fr 1fr 2fr auto; gap:14px; align-items:end;">
+      <div class="field" style="margin:0;">
+        <label for="sick_date_from">Unfit from</label>
+        <input type="date" id="sick_date_from" name="date_from" required>
+      </div>
+      <div class="field" style="margin:0;">
+        <label for="sick_date_to">Unfit to</label>
+        <input type="date" id="sick_date_to" name="date_to" required>
+      </div>
+      <div class="field" style="margin:0;">
+        <label for="sick_reason">Reason</label>
+        <input type="text" id="sick_reason" name="reason" placeholder="Medical reasons">
+      </div>
+      <button type="submit" class="btn btn-primary">Generate</button>
+    </form>
+  </div>
+
+  <div class="panel" style="margin-top:20px;">
+    <h2 style="margin-top:0;">Sick note history</h2>
+    {% if sick_notes %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Issued</th>
+          <th>Period</th>
+          <th>Reason</th>
+          <th>Doctor</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for n in sick_notes %}
+        <tr>
+          <td>{{ n.created_at.strftime('%Y-%m-%d') }}</td>
+          <td>{{ n.date_from.strftime('%Y-%m-%d') }} – {{ n.date_to.strftime('%Y-%m-%d') }}</td>
+          <td>{{ n.reason }}</td>
+          <td>{{ n.doctor.full_name }}</td>
+          <td><a href="{{ url_for('doctor_sick_note_print', patient_id=patient.id, note_id=n.id) }}" class="btn btn-secondary btn-small">Print</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">No sick notes issued yet.</div>
+    {% endif %}
+  </div>
+
+  <div class="panel" style="margin-top:20px;">
     <h2 style="margin-top:0;">Consultation history</h2>
     {% if consultations %}
     <table class="data-table">
