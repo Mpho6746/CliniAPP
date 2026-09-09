@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}Patients — CliniApp{% endblock %}
+{% block page_class %}shell{% endblock %}
+
+{% block content %}
+{{ ui.topbar(staff.full_name, "Doctor", show_search=true, search_value=q, search_action=url_for('doctor_patients'), search_placeholder='Search patients by name, number, or phone', help_url=url_for('help_center'), switch_url=url_for('staff_logout'), logout_url=url_for('logout'), theme=theme, notifications=notifications, extra_hidden={'gender': filters.gender, 'status': filters.status, 'min_age': filters.min_age, 'max_age': filters.max_age, 'registered_from': filters.registered_from, 'registered_to': filters.registered_to, 'location': filters.location}) }}
+{{ ui.tab_nav([
+  ("overview", "Overview", "workspace"),
+  ("patients", "Patients", "doctor_patients"),
+], "patients") }}
+
+{{ ui.announcement_banner(announcement) }}
+<div class="shell-container">
+  <div class="panel">
+    <div class="panel-header">
+      <div>
+        <h1>Patients</h1>
+        <p class="sub">{{ pagination.total }} registered{% if q %} matching “{{ q }}”{% endif %}{% if filters.active_count %} · {{ filters.active_count }} filter{{ 's' if filters.active_count != 1 }} applied{% endif %}.</p>
+      </div>
+      <div class="panel-header-actions">
+        <details class="notif-dropdown">
+          <summary class="btn btn-secondary btn-icon">{{ ui.icon('search', 16) }} Filters{% if filters.active_count %} ({{ filters.active_count }}){% endif %}</summary>
+          <form method="GET" action="{{ url_for('doctor_patients') }}" class="notif-panel filter-panel">
+            <input type="hidden" name="q" value="{{ q }}">
+            <input type="hidden" name="sort" value="{{ sort }}">
+            <input type="hidden" name="dir" value="{{ dir }}">
+            <div class="field">
+              <label for="filter_gender">Gender</label>
+              <select id="filter_gender" name="gender">
+                <option value="">Any</option>
+                {% for option in ("Female", "Male", "Other") %}
+                <option value="{{ option }}" {% if filters.gender == option %}selected{% endif %}>{{ option }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="field">
+              <label for="filter_status">Status</label>
+              <select id="filter_status" name="status">
+                <option value="">Any</option>
+                {% for option in statuses %}
+                <option value="{{ option }}" {% if filters.status == option %}selected{% endif %}>{{ option }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="field">
+              <label>Age range</label>
+              <div style="display:flex; gap:8px;">
+                <input type="number" name="min_age" min="0" max="130" placeholder="Min" value="{{ filters.min_age }}">
+                <input type="number" name="max_age" min="0" max="130" placeholder="Max" value="{{ filters.max_age }}">
+              </div>
+            </div>
+            <div class="field">
+              <label>Date registered</label>
+              <div style="display:flex; gap:8px;">
+                <input type="date" name="registered_from" value="{{ filters.registered_from }}">
+                <input type="date" name="registered_to" value="{{ filters.registered_to }}">
+              </div>
+            </div>
+            <div class="field">
+              <label for="filter_location">Address / location contains</label>
+              <input type="text" id="filter_location" name="location" placeholder="e.g. suburb name" value="{{ filters.location }}">
+            </div>
+            <button type="submit" class="btn btn-primary btn-small">Apply filters</button>
+            {% if filters.active_count %}
+            <a href="{{ url_for('doctor_patients', q=q, sort=sort, dir=dir) }}" class="hint" style="display:block; margin-top:10px;">Clear filters</a>
+            {% endif %}
+          </form>
+        </details>
+        <details class="notif-dropdown">
+          <summary class="btn btn-secondary btn-icon">{{ ui.icon('eye', 16) }} Columns</summary>
+          <div class="notif-panel column-toggle-panel" data-column-toggle="doctor_patients_columns" data-table="#patients-table">
+            <label><input type="checkbox" value="status"> Status</label>
+            <label><input type="checkbox" value="last_visit"> Last visit</label>
+            <label><input type="checkbox" value="next_appointment"> Next appointment</label>
+            <label><input type="checkbox" value="gender"> Gender</label>
+            <label><input type="checkbox" value="phone"> Phone</label>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    {% set sort_extra = {'gender': filters.gender, 'status': filters.status, 'min_age': filters.min_age, 'max_age': filters.max_age, 'registered_from': filters.registered_from, 'registered_to': filters.registered_to, 'location': filters.location, 'per_page': pagination.per_page} %}
+    {% if patients %}
+    <div class="table-scroll">
+    <table class="data-table" id="patients-table">
+      <thead>
+        <tr>
+          {{ ui.sortable_th("Name", "name", sort, dir, "doctor_patients", q, extra_args=sort_extra) }}
+          {{ ui.sortable_th("Patient #", "patient_number", sort, dir, "doctor_patients", q, extra_args=sort_extra) }}
+          {{ ui.sortable_th("Status", "status", sort, dir, "doctor_patients", q, col="status", extra_args=sort_extra) }}
+          {{ ui.sortable_th("Last visit", "last_visit", sort, dir, "doctor_patients", q, col="last_visit", extra_args=sort_extra) }}
+          {{ ui.sortable_th("Next appointment", "next_appointment", sort, dir, "doctor_patients", q, col="next_appointment", extra_args=sort_extra) }}
+          {{ ui.sortable_th("Gender", "gender", sort, dir, "doctor_patients", q, col="gender", extra_args=sort_extra) }}
+          {{ ui.sortable_th("Phone", "phone_number", sort, dir, "doctor_patients", q, col="phone", extra_args=sort_extra) }}
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for patient in patients %}
+        <tr class="row-clickable" onclick="window.location='{{ url_for('doctor_patient_detail', patient_id=patient.id) }}';">
+          <td>
+            <div class="table-avatar-cell">
+              <div class="table-avatar">{{ ui.initials(patient.full_name) }}</div>
+              {{ patient.full_name }}
+              {% if missing_fields[patient.id] %}
+              <span class="missing-info-flag" title="Missing: {{ missing_fields[patient.id]|join(', ') }}">{{ ui.icon('alert-triangle', 14) }}</span>
+              {% endif %}
+              {% if unread_by_patient.get(patient.id) %}
+              <span class="unread-badge" title="{{ unread_by_patient[patient.id] }} unread note{{ 's' if unread_by_patient[patient.id] != 1 }}">{{ unread_by_patient[patient.id] }}</span>
+              {% endif %}
+            </div>
+          </td>
+          <td>{{ patient.patient_number }}</td>
+          <td data-col="status">
+            <span class="badge badge-{{ patient.status|lower }}"><span class="badge-dot"></span>{{ patient.status }}</span>
+          </td>
+          <td data-col="last_visit">{{ last_visits[patient.id].strftime('%Y-%m-%d') if last_visits[patient.id] else "—" }}</td>
+          <td data-col="next_appointment">
+            {% if overdue[patient.id] %}
+            <span class="badge badge-overdue" title="Was due {{ patient.next_appointment }}"><span class="badge-dot"></span>Overdue</span>
+            {% else %}
+            {{ patient.next_appointment or "—" }}
+            {% endif %}
+          </td>
+          <td data-col="gender">
+            <span class="badge badge-{{ patient.gender|lower }}"><span class="badge-dot"></span>{{ patient.gender }}</span>
+          </td>
+          <td data-col="phone">{{ patient.phone_number }}</td>
+          <td onclick="event.stopPropagation();">
+            <a href="{{ url_for('doctor_patient_detail', patient_id=patient.id) }}" class="btn btn-secondary btn-small">View</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {{ ui.pagination_controls(pagination, 'doctor_patients', page_args) }}
+    {% else %}
+    <div class="empty-state">
+      {% if q %}No patients match “{{ q }}”.{% else %}No patients registered yet.{% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

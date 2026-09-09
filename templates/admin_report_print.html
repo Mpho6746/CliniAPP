@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}Report (Print) — CliniApp{% endblock %}
+{% block page_class %}shell{% endblock %}
+
+{% block content %}
+<div class="print-toolbar no-print">
+  <button type="button" class="btn btn-primary" onclick="window.print();">{{ ui.icon('file', 16) }} Print / Save as PDF</button>
+  <a href="{{ url_for('admin_report') }}" class="btn btn-secondary">Back to report</a>
+</div>
+
+<div class="shell-container print-container">
+  <div class="print-header">
+    <h1>CliniApp — Summary Report</h1>
+    <p class="sub">{{ staff.full_name }} · Generated {{ generated_at.strftime('%Y-%m-%d %H:%M') }}</p>
+  </div>
+
+  <h2>Overview</h2>
+  <table class="data-table">
+    <tbody>
+      <tr><td>Total patients</td><td>{{ total_patients }}</td></tr>
+      <tr><td>Total staff</td><td>{{ total_staff }}</td></tr>
+      {% for role, label in staff_labels.items() %}
+      <tr><td>{{ label }}s</td><td>{{ staff_counts[role] }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Demographics summary</h2>
+  <table class="data-table">
+    <tbody>
+      {% for gender, count in demographics.gender_counts.items() %}
+      <tr><td>{{ gender }}</td><td>{{ count }}</td></tr>
+      {% endfor %}
+      {% for status, count in demographics.status_counts.items() %}
+      <tr><td>{{ status }}</td><td>{{ count }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>Age / gender breakdown</h2>
+  <table class="data-table">
+    <thead>
+      <tr><th>Age group</th><th>Female</th><th>Male</th><th>Other</th><th>Total</th></tr>
+    </thead>
+    <tbody>
+      {% for row in age_gender_rows %}
+      <tr><td>{{ row.age_group }}</td><td>{{ row.Female }}</td><td>{{ row.Male }}</td><td>{{ row.Other }}</td><td>{{ row.total }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2>New registrations over time</h2>
+  <p class="sub">Last 12 months.</p>
+  <table class="data-table">
+    <thead>
+      <tr><th>Month</th><th>New patients</th></tr>
+    </thead>
+    <tbody>
+      {% for month_label, count in registrations_by_month %}
+      <tr><td>{{ month_label }}</td><td>{{ count }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}Dashboard — CliniApp{% endblock %}
+{% block page_class %}shell{% endblock %}
+
+{% block content %}
+{{ ui.topbar(user.hospital_name, "Hospital account", logout_url=url_for('logout')) }}
+
+<div class="shell-container">
+  <div class="panel panel-narrow" style="text-align:center;">
+    <div class="avatar-circle" style="width:56px; height:56px; font-size:18px; margin:0 auto 16px;">{{ ui.initials(user.hospital_name) }}</div>
+    <h1>Welcome, {{ user.hospital_name }}</h1>
+    <p class="sub">You're logged in. If you're a doctor, nurse, or pharmacist, continue on to your workspace.</p>
+    <a href="{{ url_for('staff_login') }}" class="btn btn-primary" style="margin-top:20px;">Continue to staff login →</a>
+  </div>
+</div>
+{% endblock %}

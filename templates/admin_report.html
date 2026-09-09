@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}Report — CliniApp{% endblock %}
+{% block page_class %}shell{% endblock %}
+
+{% block content %}
+{{ ui.topbar(staff.full_name, "Admin", show_search=true, search_action=url_for('search'), help_url=url_for('help_center'), switch_url=url_for('staff_logout'), logout_url=url_for('logout'), theme=theme, notifications=notifications) }}
+{{ ui.tab_nav([
+  ("overview", "Overview", "workspace"),
+  ("patients", "Patients", "admin_patients"),
+  ("staff", "Add Staff", "staff_register"),
+  ("report", "Report", "admin_report"),
+  ("settings", "Settings", "admin_settings"),
+], "report") }}
+
+{{ ui.announcement_banner(announcement) }}
+<div class="shell-container">
+  <div class="panel">
+    <div class="panel-header">
+      <div>
+        <h1>Summary report</h1>
+        <p class="sub">Generated {{ generated_at.strftime('%Y-%m-%d %H:%M') }}.</p>
+      </div>
+      <div class="panel-header-actions">
+        <a href="{{ url_for('admin_report_print') }}" target="_blank" class="btn btn-secondary btn-icon">{{ ui.icon('file', 16) }} Print / Save as PDF</a>
+        <a href="{{ url_for('admin_report_export_csv') }}" class="btn btn-secondary btn-icon">{{ ui.icon('file', 16) }} CSV</a>
+        <a href="{{ url_for('admin_report_export_xlsx') }}" class="btn btn-secondary btn-icon">{{ ui.icon('file', 16) }} Excel</a>
+      </div>
+    </div>
+
+    <div class="report-stats">
+      <div class="stat-card">
+        <div class="stat-value">{{ total_patients }}</div>
+        <div class="stat-label">Patients</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ total_staff }}</div>
+        <div class="stat-label">Staff</div>
+      </div>
+      {% for role, label in staff_labels.items() %}
+      <div class="stat-card">
+        <div class="stat-value">{{ staff_counts[role] }}</div>
+        <div class="stat-label">{{ label }}s</div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <h2>Demographics summary</h2>
+    <div class="report-stats">
+      {% for gender, count in demographics.gender_counts.items() %}
+      <div class="stat-card">
+        <div class="stat-value">{{ count }}</div>
+        <div class="stat-label">{{ gender }}</div>
+      </div>
+      {% endfor %}
+      {% for status, count in demographics.status_counts.items() %}
+      <div class="stat-card">
+        <div class="stat-value">{{ count }}</div>
+        <div class="stat-label">{{ status }}</div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <h2>Age / gender breakdown</h2>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Age group</th>
+          <th>Female</th>
+          <th>Male</th>
+          <th>Other</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in age_gender_rows %}
+        <tr>
+          <td>{{ row.age_group }}</td>
+          <td>{{ row.Female }}</td>
+          <td>{{ row.Male }}</td>
+          <td>{{ row.Other }}</td>
+          <td>{{ row.total }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h2>New registrations over time</h2>
+    <p class="sub">Last 12 months.</p>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Month</th>
+          <th>New patients</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for month_label, count in registrations_by_month %}
+        <tr>
+          <td>{{ month_label }}</td>
+          <td>{{ count }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h2>Recently registered patients</h2>
+    {% if recent_patients %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Patient #</th>
+          <th>Registered</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for patient in recent_patients %}
+        <tr>
+          <td>
+            <div class="table-avatar-cell">
+              <div class="table-avatar">{{ ui.initials(patient.full_name) }}</div>
+              {{ patient.full_name }}
+            </div>
+          </td>
+          <td>{{ patient.patient_number }}</td>
+          <td>{{ patient.created_at.strftime('%Y-%m-%d') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">No patients registered yet.</div>
+    {% endif %}
+
+    <h2>Recently added staff</h2>
+    {% if recent_staff %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Employee #</th>
+          <th>Role</th>
+          <th>Added</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for staff_role, staff_member in recent_staff %}
+        <tr>
+          <td>
+            <div class="table-avatar-cell">
+              <div class="table-avatar">{{ ui.initials(staff_member.full_name) }}</div>
+              {{ staff_member.full_name }}
+            </div>
+          </td>
+          <td>{{ staff_member.employee_number }}</td>
+          <td>{{ staff_labels[staff_role] }}</td>
+          <td>{{ staff_member.created_at.strftime('%Y-%m-%d') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">No staff added yet.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

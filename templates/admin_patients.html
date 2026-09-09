@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}Patients — CliniApp{% endblock %}
+{% block page_class %}shell{% endblock %}
+
+{% block content %}
+{{ ui.topbar(staff.full_name, "Admin", show_search=true, search_value=q, search_action=url_for('admin_patients'), search_placeholder='Search patients by name, number, or phone', help_url=url_for('help_center'), switch_url=url_for('staff_logout'), logout_url=url_for('logout'), theme=theme, notifications=notifications, extra_hidden={'gender': filters.gender, 'status': filters.status, 'min_age': filters.min_age, 'max_age': filters.max_age, 'registered_from': filters.registered_from, 'registered_to': filters.registered_to, 'location': filters.location}) }}
+{{ ui.tab_nav([
+  ("overview", "Overview", "workspace"),
+  ("patients", "Patients", "admin_patients"),
+  ("staff", "Add Staff", "staff_register"),
+  ("report", "Report", "admin_report"),
+  ("settings", "Settings", "admin_settings"),
+], "patients") }}
+
+{{ ui.announcement_banner(announcement) }}
+<div class="shell-container">
+  <div class="panel">
+    <div class="panel-header">
+      <div>
+        <h1>Patients List</h1>
+        <p class="sub">{{ pagination.total }} registered{% if q %} matching “{{ q }}”{% endif %}{% if filters.active_count %} · {{ filters.active_count }} filter{{ 's' if filters.active_count != 1 }} applied{% endif %}.</p>
+      </div>
+      <div class="panel-header-actions">
+        <details class="notif-dropdown">
+          <summary class="btn btn-secondary btn-icon">{{ ui.icon('search', 16) }} Filters{% if filters.active_count %} ({{ filters.active_count }}){% endif %}</summary>
+          <form method="GET" action="{{ url_for('admin_patients') }}" class="notif-panel filter-panel">
+            <input type="hidden" name="q" value="{{ q }}">
+            <input type="hidden" name="sort" value="{{ sort }}">
+            <input type="hidden" name="dir" value="{{ dir }}">
+            <div class="field">
+              <label for="filter_gender">Gender</label>
+              <select id="filter_gender" name="gender">
+                <option value="">Any</option>
+                {% for option in ("Female", "Male", "Other") %}
+                <option value="{{ option }}" {% if filters.gender == option %}selected{% endif %}>{{ option }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="field">
+              <label for="filter_status">Status</label>
+              <select id="filter_status" name="status">
+                <option value="">Any</option>
+                {% for option in statuses %}
+                <option value="{{ option }}" {% if filters.status == option %}selected{% endif %}>{{ option }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="field">
+              <label>Age range</label>
+              <div style="display:flex; gap:8px;">
+                <input type="number" name="min_age" min="0" max="130" placeholder="Min" value="{{ filters.min_age }}">
+                <input type="number" name="max_age" min="0" max="130" placeholder="Max" value="{{ filters.max_age }}">
+              </div>
+            </div>
+            <div class="field">
+              <label>Date registered</label>
+              <div style="display:flex; gap:8px;">
+                <input type="date" name="registered_from" value="{{ filters.registered_from }}">
+                <input type="date" name="registered_to" value="{{ filters.registered_to }}">
+              </div>
+            </div>
+            <div class="field">
+              <label for="filter_location">Address / location contains</label>
+              <input type="text" id="filter_location" name="location" placeholder="e.g. suburb name" value="{{ filters.location }}">
+            </div>
+            <button type="submit" class="btn btn-primary btn-small">Apply filters</button>
+            {% if filters.active_count %}
+            <a href="{{ url_for('admin_patients', q=q, sort=sort, dir=dir) }}" class="hint" style="display:block; margin-top:10px;">Clear filters</a>
+            {% endif %}
+          </form>
+        </details>
+        <details class="notif-dropdown">
+          <summary class="btn btn-secondary btn-icon">{{ ui.icon('eye', 16) }} Columns</summary>
+          <div class="notif-panel column-toggle-panel" data-column-toggle="admin_patients_columns" data-table="#patients-table">
+            <label><input type="checkbox" value="status"> Status</label>
+            <label><input type="checkbox" value="last_visit"> Last visit</label>
+            <label><input type="checkbox" value="next_appointment"> Next appointment</label>
+            <label><input type="checkbox" value="gender"> Gender</label>
+            <label><input type="checkbox" value="phone"> Phone</label>
+          </div>
+        </details>
+        <a href="{{ url_for('admin_report') }}" class="btn btn-secondary btn-icon">{{ ui.icon('file', 16) }} View report</a>
+        <button type="button" class="btn btn-primary btn-icon" onclick="document.getElementById('register-modal').showModal();">{{ ui.icon('plus', 16) }} Register patient</button>
+      </div>
+    </div>
+
+    {% set sort_extra = {'gender': filters.gender, 'status': filters.status, 'min_age': filters.min_age, 'max_age': filters.max_age, 'registered_from': filters.registered_from, 'registered_to': filters.registered_to, 'location': filters.location, 'per_page': pagination.per_page} %}
+    {% if patients %}
+    <div class="table-scroll">
+    <table class="data-table" id="patients-table">
+      <thead>
+        <tr>
+          {{ ui.sortable_th("Name", "name", sort, dir, "admin_patients", q, extra_args=sort_extra) }}
+          {{ ui.sortable_th("Patient #", "patient_number", sort, dir, "admin_patients", q, extra_args=sort_extra) }}
+          {{ ui.sortable_th("Status", "status", sort, dir, "admin_patients", q, col="status", extra_args=sort_extra) }}
+          {{ ui.sortable_th("Last visit", "last_visit", sort, dir, "admin_patients", q, col="last_visit", extra_args=sort_extra) }}
+          {{ ui.sortable_th("Next appointment", "next_appointment", sort, dir, "admin_patients", q, col="next_appointment", extra_args=sort_extra) }}
+          {{ ui.sortable_th("Gender", "gender", sort, dir, "admin_patients", q, col="gender", extra_args=sort_extra) }}
+          {{ ui.sortable_th("Phone", "phone_number", sort, dir, "admin_patients", q, col="phone", extra_args=sort_extra) }}
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for patient in patients %}
+        <tr class="row-clickable" onclick="window.location='{{ url_for('admin_patient_profile', patient_id=patient.id) }}';">
+          <td>
+            <div class="table-avatar-cell">
+              <div class="table-avatar">{{ ui.initials(patient.full_name) }}</div>
+              {{ patient.full_name }}
+              {% if missing_fields[patient.id] %}
+              <span class="missing-info-flag" title="Missing: {{ missing_fields[patient.id]|join(', ') }}">{{ ui.icon('alert-triangle', 14) }}</span>
+              {% endif %}
+            </div>
+          </td>
+          <td>{{ patient.patient_number }}</td>
+          <td data-col="status">
+            <span class="badge badge-{{ patient.status|lower }}"><span class="badge-dot"></span>{{ patient.status }}</span>
+          </td>
+          <td data-col="last_visit">{{ last_visits[patient.id].strftime('%Y-%m-%d') if last_visits[patient.id] else "—" }}</td>
+          <td data-col="next_appointment">
+            {% if overdue[patient.id] %}
+            <span class="badge badge-overdue" title="Was due {{ patient.next_appointment }}"><span class="badge-dot"></span>Overdue</span>
+            {% else %}
+            {{ patient.next_appointment or "—" }}
+            {% endif %}
+          </td>
+          <td data-col="gender">
+            <span class="badge badge-{{ patient.gender|lower }}"><span class="badge-dot"></span>{{ patient.gender }}</span>
+          </td>
+          <td data-col="phone">{{ patient.phone_number }}</td>
+          <td onclick="event.stopPropagation();">
+            <div class="row-actions">
+              <a href="{{ url_for('admin_edit_patient', patient_id=patient.id) }}" class="icon-action" title="Edit">{{ ui.icon('edit', 16) }}</a>
+              <form method="POST" action="{{ url_for('admin_delete_patient', patient_id=patient.id) }}" onsubmit="return confirm('Remove {{ patient.full_name }} from patient records?');">
+                <button type="submit" class="icon-action icon-action-danger" title="Delete">{{ ui.icon('trash', 16) }}</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {{ ui.pagination_controls(pagination, 'admin_patients', page_args) }}
+    {% else %}
+    <div class="empty-state">
+      {% if q %}No patients match “{{ q }}”.{% else %}No patients registered yet.{% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<dialog id="register-modal" class="modal">
+  <div class="modal-inner">
+    <div class="modal-header">
+      <h2 style="margin:0;">Register patient</h2>
+      <button type="button" class="icon-btn" onclick="document.getElementById('register-modal').close();" title="Close">{{ ui.icon('x', 18) }}</button>
+    </div>
+    <p class="sub">Fields marked <span class="required-mark">*</span> are required. A patient number is generated automatically, or you can enter one yourself.</p>
+
+    <form method="POST" action="{{ url_for('admin_register_patient') }}">
+      <div class="field">
+        <label for="reg_full_name">Full name <span class="required-mark">*</span></label>
+        <input type="text" id="reg_full_name" name="full_name" required>
+      </div>
+      <div class="field">
+        <label for="reg_date_of_birth">Date of birth <span class="required-mark">*</span></label>
+        <input type="date" id="reg_date_of_birth" name="date_of_birth" required>
+      </div>
+      <div class="field">
+        <label for="reg_gender">Gender <span class="required-mark">*</span></label>
+        <select id="reg_gender" name="gender" required>
+          <option value="" disabled selected>Choose one</option>
+          <option value="Female">Female</option>
+          <option value="Male">Male</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="reg_phone_number">Phone number (contact) <span class="required-mark">*</span></label>
+        <input type="text" id="reg_phone_number" name="phone_number" required>
+      </div>
+      <div class="field">
+        <label for="reg_address">Address</label>
+        <input type="text" id="reg_address" name="address">
+      </div>
+      <div class="field">
+        <label for="reg_status">Status</label>
+        <select id="reg_status" name="status">
+          {% for option in statuses %}
+          <option value="{{ option }}" {% if option == "Active" %}selected{% endif %}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Patient number</label>
+        <div class="patient-number-mode">
+          <label><input type="radio" name="patient_number_mode" value="auto" checked onchange="document.getElementById('manual_patient_number_field').hidden = true;"> Auto-generate</label>
+          <label><input type="radio" name="patient_number_mode" value="manual" onchange="document.getElementById('manual_patient_number_field').hidden = false;"> Enter manually</label>
+        </div>
+        <div id="manual_patient_number_field" hidden style="margin-top:8px;">
+          <input type="text" name="patient_number" inputmode="numeric" maxlength="6" placeholder="6-digit number">
+        </div>
+      </div>
+
+      <h2 style="margin-top:28px;">Contact &amp; insurance</h2>
+      <div class="field">
+        <label for="reg_email">Email</label>
+        <input type="email" id="reg_email" name="email">
+      </div>
+      <div class="field">
+        <label for="reg_next_appointment">Next appointment</label>
+        <input type="date" id="reg_next_appointment" name="next_appointment">
+      </div>
+      <div class="field">
+        <label for="reg_insurance_provider">Medical aid / insurance provider</label>
+        <input type="text" id="reg_insurance_provider" name="insurance_provider">
+      </div>
+      <div class="field">
+        <label for="reg_insurance_policy_number">Policy number</label>
+        <input type="text" id="reg_insurance_policy_number" name="insurance_policy_number">
+      </div>
+
+      <h2 style="margin-top:28px;">Emergency contact</h2>
+      <div class="field">
+        <label for="reg_emergency_contact_name">Name</label>
+        <input type="text" id="reg_emergency_contact_name" name="emergency_contact_name">
+      </div>
+      <div class="field">
+        <label for="reg_emergency_contact_phone">Phone number</label>
+        <input type="text" id="reg_emergency_contact_phone" name="emergency_contact_phone">
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:24px;">
+        <button type="submit" class="btn btn-primary" style="flex:1;">Register patient</button>
+        <button type="button" class="btn btn-secondary" style="width:auto;" onclick="document.getElementById('register-modal').close();">Cancel</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var modal = document.getElementById('register-modal');
+  if (!modal) return;
+  modal.addEventListener('click', function (e) {
+    if (e.target === modal) modal.close();
+  });
+  {% if request.args.get('open_register') %}
+  modal.showModal();
+  {% endif %}
+});
+</script>
+{% endblock %}

@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}{% if bootstrap %}Set Up Admin{% else %}Add Staff Member{% endif %} — CliniApp{% endblock %}
+{% block page_class %}{% if not bootstrap %}shell{% endif %}{% endblock %}
+
+{% block content %}
+{% if bootstrap %}
+<div class="auth-card">
+  <div class="brand">
+    <span class="brand-mark">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <polyline points="2 13 8 13 10.5 6 14 21 16.5 13 22 13" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </span>
+    CliniApp
+  </div>
+
+  <h1>Set up the first Admin</h1>
+  <p class="sub">No staff accounts exist yet. Create the Admin account, then use it to add doctors, nurses, and pharmacists.</p>
+
+  {{ self.staff_form() }}
+
+  <p class="hint">Already registered? <a href="{{ url_for('staff_login') }}">Log in</a></p>
+</div>
+{% else %}
+{{ ui.topbar(staff.full_name, "Admin", show_search=true, search_action=url_for('search'), help_url=url_for('help_center'), switch_url=url_for('staff_logout'), logout_url=url_for('logout'), theme=theme, notifications=notifications) }}
+{{ ui.tab_nav([
+  ("overview", "Overview", "workspace"),
+  ("patients", "Patients", "admin_patients"),
+  ("staff", "Add Staff", "staff_register"),
+  ("report", "Report", "admin_report"),
+  ("settings", "Settings", "admin_settings"),
+], "staff") }}
+{{ ui.announcement_banner(announcement) }}
+
+<div class="shell-container">
+  <div class="panel panel-narrow">
+    <h1>Add staff member</h1>
+    <p class="sub">Set up their role, employee number, and PIN.</p>
+
+    {{ self.staff_form() }}
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block staff_form %}
+<form method="POST" action="{{ url_for('staff_register') }}">
+  <div class="field">
+    <label for="role">Role</label>
+    <select id="role" name="role" required>
+      {% for key, label in roles.items() %}
+      <option value="{{ key }}">{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="full_name">Full name</label>
+    <input type="text" id="full_name" name="full_name" required>
+  </div>
+  {% if not bootstrap %}
+  <div class="field">
+    <label for="access_level">Access level</label>
+    <select id="access_level" name="access_level" required>
+      {% for key in access_levels %}
+      <option value="{{ key }}">{{ access_level_labels[key] }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endif %}
+
+  <h2 style="margin-top:28px;">Personal information</h2>
+  <div class="field">
+    <label for="email">Email address</label>
+    <input type="email" id="email" name="email">
+  </div>
+  <div class="field">
+    <label for="phone_work">Work phone</label>
+    <input type="text" id="phone_work" name="phone_work">
+  </div>
+  <div class="field">
+    <label for="phone_mobile">Mobile phone</label>
+    <input type="text" id="phone_mobile" name="phone_mobile">
+  </div>
+  <div class="field">
+    <label for="date_of_birth">Date of birth</label>
+    <input type="date" id="date_of_birth" name="date_of_birth">
+  </div>
+  <div class="field">
+    <label for="gender">Gender</label>
+    <select id="gender" name="gender">
+      <option value="" selected>— Optional —</option>
+      {% for option in gender_options %}
+      <option value="{{ option }}">{{ option }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="national_id">National ID / Passport number</label>
+    <input type="text" id="national_id" name="national_id">
+  </div>
+  <div class="field">
+    <label for="home_address">Home address</label>
+    <input type="text" id="home_address" name="home_address">
+  </div>
+
+  <h2 style="margin-top:28px;">Professional details</h2>
+  <div class="field">
+    <label for="specialization">Specialization / Department</label>
+    <input type="text" id="specialization" name="specialization" placeholder="e.g. Cardiology, Pediatrics">
+  </div>
+  <div class="field">
+    <label for="qualification">Qualification / Degree</label>
+    <input type="text" id="qualification" name="qualification" placeholder="e.g. MBChB, BSc Nursing, BPharm">
+  </div>
+  <div class="field">
+    <label for="years_of_experience">Years of experience</label>
+    <input type="number" id="years_of_experience" name="years_of_experience" min="0" max="70">
+  </div>
+  <div class="field">
+    <label for="license_number">License / registration number</label>
+    <input type="text" id="license_number" name="license_number" placeholder="e.g. HPCSA number">
+  </div>
+  <div class="field">
+    <label for="date_joined">Date of joining</label>
+    <input type="date" id="date_joined" name="date_joined" value="{{ today }}">
+  </div>
+  <div class="field">
+    <label for="shift_preference">Shift preference</label>
+    <select id="shift_preference" name="shift_preference">
+      <option value="" selected>— Optional —</option>
+      {% for option in shift_options %}
+      <option value="{{ option }}">{{ option }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field" id="consultation_fee_field">
+    <label for="consultation_fee">Consultation fee (doctors only)</label>
+    <input type="number" id="consultation_fee" name="consultation_fee" min="0" step="0.01">
+  </div>
+
+  <h2 style="margin-top:28px;">Login details</h2>
+  <div class="field">
+    <label for="employee_number">Employee number (6 digits)</label>
+    <input type="text" id="employee_number" name="employee_number" inputmode="numeric" maxlength="6" required>
+  </div>
+  <div class="field">
+    <label for="pin">PIN ({{ pin_length }} digits)</label>
+    <input type="password" id="pin" name="pin" inputmode="numeric" maxlength="{{ pin_length }}" required>
+  </div>
+  <div class="field">
+    <label for="confirm">Confirm PIN</label>
+    <input type="password" id="confirm" name="confirm" inputmode="numeric" maxlength="{{ pin_length }}" required>
+  </div>
+  <button type="submit" class="btn btn-primary">Create staff account</button>
+</form>
+<script>
+(function () {
+  var roleSelect = document.getElementById('role');
+  var feeField = document.getElementById('consultation_fee_field');
+  function syncFeeVisibility() {
+    feeField.hidden = roleSelect.value !== 'doctor';
+  }
+  roleSelect.addEventListener('change', syncFeeVisibility);
+  syncFeeVisibility();
+
+  var accessSelect = document.getElementById('access_level');
+  if (accessSelect) {
+    var defaultAccessByRole = {{ default_access_by_role|tojson }};
+    function syncDefaultAccess() {
+      var suggested = defaultAccessByRole[roleSelect.value];
+      if (suggested) {
+        accessSelect.value = suggested;
+      }
+    }
+    roleSelect.addEventListener('change', syncDefaultAccess);
+    syncDefaultAccess();
+  }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}{{ patient.full_name }} — CliniApp{% endblock %}
+{% block page_class %}shell{% endblock %}
+
+{% block content %}
+{{ ui.topbar(staff.full_name, "Admin", show_search=true, search_action=url_for('search'), help_url=url_for('help_center'), switch_url=url_for('staff_logout'), logout_url=url_for('logout'), theme=theme, notifications=notifications) }}
+{{ ui.tab_nav([
+  ("overview", "Overview", "workspace"),
+  ("patients", "Patients", "admin_patients"),
+  ("staff", "Add Staff", "staff_register"),
+  ("report", "Report", "admin_report"),
+  ("settings", "Settings", "admin_settings"),
+], "patients") }}
+{{ ui.announcement_banner(announcement) }}
+<div class="shell-container">
+  <div class="panel">
+    <div class="panel-header">
+      <div>
+        <div class="table-avatar-cell">
+          <div class="table-avatar" style="width:40px; height:40px; font-size:14px;">{{ ui.initials(patient.full_name) }}</div>
+          <div>
+            <h1 style="margin:0;">{{ patient.full_name }}</h1>
+            <p class="sub">
+              Patient #{{ patient.patient_number }} · {{ patient.gender }} · Born {{ patient.date_of_birth }}
+              <span class="badge badge-{{ patient.status|lower }}" style="margin-left:6px;"><span class="badge-dot"></span>{{ patient.status }}</span>
+              {% if overdue %}<span class="badge badge-overdue" style="margin-left:4px;"><span class="badge-dot"></span>Overdue appointment</span>{% endif %}
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="panel-header-actions">
+        <a href="{{ url_for('admin_edit_patient', patient_id=patient.id) }}" class="btn btn-secondary btn-small">{{ ui.icon('edit', 14) }} Edit</a>
+        <form method="POST" action="{{ url_for('admin_delete_patient', patient_id=patient.id) }}" onsubmit="return confirm('Remove {{ patient.full_name }} from patient records?');">
+          <button type="submit" class="btn btn-secondary btn-small">{{ ui.icon('trash', 14) }} Delete</button>
+        </form>
+        <a href="{{ url_for('admin_patients') }}" class="btn btn-secondary btn-small">Back to patients</a>
+      </div>
+    </div>
+    {% if missing_fields %}
+    <p class="sub" style="margin-top:12px; color:var(--warning);">{{ ui.icon('alert-triangle', 14) }} Missing: {{ missing_fields|join(', ') }}</p>
+    {% endif %}
+    <p class="sub" style="margin-top:12px;">{{ patient.phone_number }}{% if patient.email %} · {{ patient.email }}{% endif %} · {{ patient.address }}</p>
+    <p class="sub" style="margin-top:4px;">Last visit: {{ last_visit.strftime('%Y-%m-%d') if last_visit else "—" }}{% if patient.next_appointment %} · Next appointment: {{ patient.next_appointment }}{% endif %}</p>
+    {% if patient.insurance_provider %}<p class="sub" style="margin-top:4px;">Medical aid: {{ patient.insurance_provider }}{% if patient.insurance_policy_number %} (#{{ patient.insurance_policy_number }}){% endif %}</p>{% endif %}
+    {% if patient.emergency_contact_name %}<p class="sub" style="margin-top:4px;">Emergency contact: {{ patient.emergency_contact_name }}{% if patient.emergency_contact_phone %} — {{ patient.emergency_contact_phone }}{% endif %}</p>{% endif %}
+  </div>
+
+  <div class="panel" style="margin-top:20px;">
+    <h2 style="margin-top:0;">Consultation history</h2>
+    {% if consultations %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Doctor</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in consultations %}
+        <tr>
+          <td>{{ c.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td>{{ c.doctor.full_name }}</td>
+          <td>{{ c.notes }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">No consultations recorded yet.</div>
+    {% endif %}
+  </div>
+
+  <div class="panel" style="margin-top:20px;">
+    <h2 style="margin-top:0;">Prescription history</h2>
+    {% if prescriptions %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Doctor</th>
+          <th>Medication</th>
+          <th>Dosage</th>
+          <th>Instructions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in prescriptions %}
+        <tr>
+          <td>{{ p.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td>{{ p.doctor.full_name }}</td>
+          <td>{{ p.medication_name }}</td>
+          <td>{{ p.dosage }}</td>
+          <td>{{ p.instructions }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">No prescriptions recorded yet.</div>
+    {% endif %}
+  </div>
+
+  <div class="panel" style="margin-top:20px;">
+    <h2 style="margin-top:0;">Lab results</h2>
+    {% if lab_results %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Technician</th>
+          <th>Test</th>
+          <th>Result</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in lab_results %}
+        <tr>
+          <td>{{ r.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td>{{ r.technician.full_name }}</td>
+          <td>{{ r.test_name }}</td>
+          <td>{{ r.result }}</td>
+          <td>{{ r.notes }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">No lab results recorded yet.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

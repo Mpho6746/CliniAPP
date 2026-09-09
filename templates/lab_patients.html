@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}Patients — CliniApp{% endblock %}
+{% block page_class %}shell{% endblock %}
+
+{% block content %}
+{{ ui.topbar(staff.full_name, "Lab Technician", show_search=true, search_value=q, search_action=url_for('lab_patients'), search_placeholder='Search patients by name, number, or phone', help_url=url_for('help_center'), switch_url=url_for('staff_logout'), logout_url=url_for('logout'), theme=theme, notifications=notifications) }}
+{{ ui.tab_nav([
+  ("overview", "Overview", "workspace"),
+  ("patients", "Patients", "lab_patients"),
+], "patients") }}
+
+{{ ui.announcement_banner(announcement) }}
+<div class="shell-container">
+  <div class="panel">
+    <div class="panel-header">
+      <div>
+        <h1>Patients</h1>
+        <p class="sub">{{ pagination.total }} registered{% if q %} matching “{{ q }}”{% endif %}. Pick a patient to record or view lab results.</p>
+      </div>
+    </div>
+
+    {% set sort_extra = {'per_page': pagination.per_page} %}
+    {% if patients %}
+    <div class="table-scroll">
+    <table class="data-table">
+      <thead>
+        <tr>
+          {{ ui.sortable_th("Name", "name", sort, dir, "lab_patients", q, extra_args=sort_extra) }}
+          {{ ui.sortable_th("Patient #", "patient_number", sort, dir, "lab_patients", q, extra_args=sort_extra) }}
+          {{ ui.sortable_th("Gender", "gender", sort, dir, "lab_patients", q, extra_args=sort_extra) }}
+          {{ ui.sortable_th("Phone", "phone_number", sort, dir, "lab_patients", q, extra_args=sort_extra) }}
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for patient in patients %}
+        <tr class="row-clickable" onclick="window.location='{{ url_for('lab_patient_detail', patient_id=patient.id) }}';">
+          <td>
+            <div class="table-avatar-cell">
+              <div class="table-avatar">{{ ui.initials(patient.full_name) }}</div>
+              {{ patient.full_name }}
+            </div>
+          </td>
+          <td>{{ patient.patient_number }}</td>
+          <td>
+            <span class="badge badge-{{ patient.gender|lower }}"><span class="badge-dot"></span>{{ patient.gender }}</span>
+          </td>
+          <td>{{ patient.phone_number }}</td>
+          <td onclick="event.stopPropagation();">
+            <a href="{{ url_for('lab_patient_detail', patient_id=patient.id) }}" class="btn btn-secondary btn-small">View</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {{ ui.pagination_controls(pagination, 'lab_patients', page_args) }}
+    {% else %}
+    <div class="empty-state">
+      {% if q %}No patients match “{{ q }}”.{% else %}No patients registered yet.{% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

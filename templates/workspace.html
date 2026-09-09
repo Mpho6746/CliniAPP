@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}{{ role_label }} Workspace — CliniApp{% endblock %}
+{% block page_class %}shell{% endblock %}
+
+{% block content %}
+{{ ui.topbar(staff.full_name, role_label, show_search=true, search_action=url_for('search'), help_url=url_for('help_center'), switch_url=url_for('staff_logout'), logout_url=url_for('logout'), theme=theme, notifications=notifications) }}
+
+{% if role == "admin" %}
+{{ ui.tab_nav([
+  ("overview", "Overview", "workspace"),
+  ("patients", "Patients", "admin_patients"),
+  ("staff", "Add Staff", "staff_register"),
+  ("report", "Report", "admin_report"),
+  ("settings", "Settings", "admin_settings"),
+], "overview") }}
+{% elif role == "doctor" %}
+{{ ui.tab_nav([
+  ("overview", "Overview", "workspace"),
+  ("patients", "Patients", "doctor_patients"),
+], "overview") }}
+{% elif role == "receptionist" %}
+{{ ui.tab_nav([
+  ("overview", "Overview", "workspace"),
+  ("patients", "Patients", "receptionist_patients"),
+], "overview") }}
+{% elif role == "lab_technician" %}
+{{ ui.tab_nav([
+  ("overview", "Overview", "workspace"),
+  ("patients", "Patients", "lab_patients"),
+], "overview") }}
+{% endif %}
+{{ ui.announcement_banner(announcement) }}
+
+<div class="shell-container">
+  {% if role == "doctor" %}
+  <div class="panel panel-narrow" style="text-align:center;">
+    <div class="avatar-circle" style="width:56px; height:56px; font-size:18px; margin:0 auto 16px;">{{ ui.initials(staff.full_name) }}</div>
+    <h1>{{ role_label }} workspace</h1>
+    <p class="sub">Welcome, {{ staff.full_name }} (#{{ staff.employee_number }}).</p>
+    <a href="{{ url_for('doctor_patients') }}" class="btn btn-primary" style="margin-top:20px;">View patients</a>
+  </div>
+  {% elif role == "receptionist" %}
+  <div class="panel panel-narrow" style="text-align:center;">
+    <div class="avatar-circle" style="width:56px; height:56px; font-size:18px; margin:0 auto 16px;">{{ ui.initials(staff.full_name) }}</div>
+    <h1>{{ role_label }} workspace</h1>
+    <p class="sub">Welcome, {{ staff.full_name }} (#{{ staff.employee_number }}).</p>
+    <a href="{{ url_for('receptionist_patients') }}" class="btn btn-primary" style="margin-top:20px;">View patients</a>
+  </div>
+  {% elif role == "lab_technician" %}
+  <div class="panel panel-narrow" style="text-align:center;">
+    <div class="avatar-circle" style="width:56px; height:56px; font-size:18px; margin:0 auto 16px;">{{ ui.initials(staff.full_name) }}</div>
+    <h1>{{ role_label }} workspace</h1>
+    <p class="sub">Welcome, {{ staff.full_name }} (#{{ staff.employee_number }}).</p>
+    <a href="{{ url_for('lab_patients') }}" class="btn btn-primary" style="margin-top:20px;">View patients</a>
+  </div>
+  {% elif role not in ("admin", "doctor") %}
+  <div class="panel panel-narrow" style="text-align:center;">
+    <div class="avatar-circle" style="width:56px; height:56px; font-size:18px; margin:0 auto 16px;">{{ ui.initials(staff.full_name) }}</div>
+    <h1>{{ role_label }} workspace</h1>
+    <p class="sub">Welcome, {{ staff.full_name }} (#{{ staff.employee_number }}).</p>
+    <p class="sub" style="margin-top:16px;">This is a placeholder — tell me what a {{ role_label|lower }} needs to see here.</p>
+  </div>
+  {% endif %}
+
+  {% if layout %}
+  <div class="panel" style="{% if role == 'doctor' %}margin-top:20px;{% endif %}">
+    <h3 style="margin-top:0;">Dashboard widgets</h3>
+    <p class="sub">Drag a widget below to reorder it. Pin/unpin to show or hide it.</p>
+    <div class="widget-toggle-list">
+      {% for w in layout %}
+      <form method="POST" action="{{ url_for('toggle_dashboard_widget_route', widget_key=w.key) }}">
+        <button type="submit" class="widget-toggle-pill {% if w.hidden %}widget-toggle-pill-hidden{% endif %}">
+          {{ ui.icon('eye-off' if w.hidden else 'eye', 13) }} {{ w.label }}
+        </button>
+      </form>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="dash-widgets" id="dash-widgets">
+    {% for w in layout %}
+    {% if not w.hidden %}
+    <div class="dash-widget" draggable="true" data-widget-key="{{ w.key }}">
+      <div class="dash-widget-handle" title="Drag to reorder">{{ ui.icon('grip', 14) }} Drag to reorder</div>
+
+      {% if w.key == "quick_actions" and role == "admin" %}
+      <div class="panel dash-widget-panel">
+        <h1 style="margin-top:0;">Quick actions</h1>
+        <div class="quick-actions">
+          {% if has_access(staff, "patients", "write") %}
+          <a href="{{ url_for('admin_register_patient') }}" class="quick-action">
+            <span class="quick-action-icon">{{ ui.icon('plus', 18) }}</span>
+            <span class="quick-action-label">Register new patient</span>
+          </a>
+          {% endif %}
+          {% if has_access(staff, "admin_ops", "write") %}
+          <a href="{{ url_for('staff_register') }}" class="quick-action">
+            <span class="quick-action-icon">{{ ui.icon('user-plus', 18) }}</span>
+            <span class="quick-action-label">Add staff member</span>
+          </a>
+          {% endif %}
+          {% if has_access(staff, "admin_ops", "view") %}
+          <a href="{{ url_for('admin_report') }}" class="quick-action">
+            <span class="quick-action-icon">{{ ui.icon('file', 18) }}</span>
+            <span class="quick-action-label">Generate report</span>
+          </a>
+          {% endif %}
+        </div>
+      </div>
+
+      {% elif w.key == "dashboard_summary" and metrics %}
+      <div class="panel dash-widget-panel">
+        {% if role == "admin" %}
+        <h1 style="margin-top:0;">Dashboard summary</h1>
+        <p class="sub">Welcome back, {{ staff.full_name }}.</p>
+        {% else %}
+        <h2 style="margin-top:0;">Dashboard summary</h2>
+        {% endif %}
+        <div class="report-stats">
+          <div class="stat-card">
+            <div class="stat-value">{{ metrics.total_patients }}</div>
+            <div class="stat-label">Total patients</div>
+          </div>
+          {% if role == "admin" %}
+          <div class="stat-card">
+            <div class="stat-value">{{ metrics.total_staff }}</div>
+            <div class="stat-label">Total staff</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">{{ metrics.open_tickets }}</div>
+            <div class="stat-label">Open tickets</div>
+          </div>
+          <div class="stat-card {% if metrics.overdue_appointments %}stat-card-urgent{% endif %}">
+            <div class="stat-value">{{ metrics.overdue_appointments }}</div>
+            <div class="stat-label">Overdue appointments</div>
+          </div>
+          {% elif role == "doctor" %}
+          <div class="stat-card">
+            <div class="stat-value">{{ metrics.my_consultations }}</div>
+            <div class="stat-label">Consultations recorded</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">{{ metrics.my_prescriptions }}</div>
+            <div class="stat-label">Prescriptions written</div>
+          </div>
+          <div class="stat-card {% if metrics.unread_notes %}stat-card-urgent{% endif %}">
+            <div class="stat-value">{{ metrics.unread_notes }}</div>
+            <div class="stat-label">Unread notes</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      {% elif w.key == "chart_new_patients" and charts %}
+      <div class="panel chart-panel dash-widget-panel">
+        <h3>New patients per day</h3>
+        <p class="sub">Last 7 days.</p>
+        <svg class="chart-svg" viewBox="0 0 {{ charts.new_patients_bar.width }} {{ charts.new_patients_bar.height }}">
+          <line x1="0" y1="{{ charts.new_patients_bar.baseline_y }}" x2="{{ charts.new_patients_bar.width }}" y2="{{ charts.new_patients_bar.baseline_y }}" stroke="var(--border)" stroke-width="1"/>
+          {% for bar in charts.new_patients_bar.bars %}
+          <rect x="{{ bar.x }}" y="{{ bar.y }}" width="{{ bar.width }}" height="{{ bar.height }}" rx="3" fill="var(--primary)"><title>{{ bar.label }}: {{ bar.value }}</title></rect>
+          <text x="{{ bar.label_x }}" y="{{ charts.new_patients_bar.height - 6 }}" text-anchor="middle" class="chart-axis-label">{{ bar.label }}</text>
+          {% endfor %}
+        </svg>
+      </div>
+
+      {% elif w.key == "chart_staff_pie" and charts %}
+      <div class="panel chart-panel dash-widget-panel">
+        <h3>Staff by role</h3>
+        <p class="sub">{{ metrics.total_staff }} total.</p>
+        <svg class="chart-svg" viewBox="0 0 160 160" style="max-width:160px; margin:0 auto;">
+          {% for slice in charts.staff_pie %}
+          <path d="{{ slice.path }}" fill="{{ slice.color }}"><title>{{ slice.label }}: {{ slice.value }} ({{ slice.percent }}%)</title></path>
+          {% endfor %}
+        </svg>
+        <div class="chart-legend">
+          {% for slice in charts.staff_pie %}
+          <div class="chart-legend-item">
+            <span class="chart-legend-dot" style="background:{{ slice.color }};"></span>
+            {{ slice.label }} — {{ slice.value }} ({{ slice.percent }}%)
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      {% elif w.key == "chart_growth" and charts %}
+      <div class="panel chart-panel dash-widget-panel">
+        <h3>Patient growth</h3>
+        <p class="sub">{{ charts.patient_growth_line.start_value }} → {{ charts.patient_growth_line.end_value }} over 30 days.</p>
+        <svg class="chart-svg" viewBox="0 0 {{ charts.patient_growth_line.width }} {{ charts.patient_growth_line.height }}">
+          <polygon points="{{ charts.patient_growth_line.area_points }}" fill="var(--primary-bg)" stroke="none"/>
+          <polyline points="{{ charts.patient_growth_line.points }}" fill="none" stroke="var(--primary)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+        </svg>
+      </div>
+
+      {% elif w.key == "calendar" and calendar_widget %}
+      <div class="panel chart-panel dash-widget-panel">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <h3 style="margin:0;">{{ calendar_widget.label }}</h3>
+          <div style="display:flex; gap:2px;">
+            <a href="{{ url_for('workspace', cal_year=calendar_widget.prev_year, cal_month=calendar_widget.prev_month) }}" class="icon-btn" style="width:26px; height:26px;" title="Previous month">{{ ui.icon('back', 14) }}</a>
+            <a href="{{ url_for('workspace', cal_year=calendar_widget.next_year, cal_month=calendar_widget.next_month) }}" class="icon-btn" style="width:26px; height:26px;" title="Next month">{{ ui.icon('forward', 14) }}</a>
+          </div>
+        </div>
+        <p class="sub">Dots mark days with a scheduled next appointment.</p>
+        <table class="mini-calendar">
+          <thead>
+            <tr><th>M</th><th>T</th><th>W</th><th>T</th><th>F</th><th>S</th><th>S</th></tr>
+          </thead>
+          <tbody>
+            {% for week in calendar_widget.weeks %}
+            <tr>
+              {% for cell in week %}
+              <td>
+                {% if cell.in_month %}
+                <a href="{{ url_for('admin_schedule' if role == 'admin' else 'doctor_schedule', date_str=cell.date) }}" class="cal-day {% if cell.is_today %}cal-day-today{% elif cell.count %}cal-day-has-appt{% endif %}" title="{% if cell.count %}{{ cell.count }} appointment{{ 's' if cell.count != 1 }}{% endif %}">
+                  {{ cell.day }}
+                  {% if cell.count %}<span class="cal-dot"></span>{% endif %}
+                </a>
+                {% endif %}
+              </td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

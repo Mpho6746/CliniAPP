@@ -1,5 +1,6 @@
 # Database
 clinic.db
+clinic.db.bak*
 *.db
 
 # Python

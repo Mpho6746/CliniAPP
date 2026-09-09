@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}Help & Support — CliniApp{% endblock %}
+{% block page_class %}shell{% endblock %}
+
+{% block content %}
+{{ ui.topbar(staff.full_name, role_label, show_search=true, search_action=url_for('search'), help_url=url_for('help_center'), switch_url=url_for('staff_logout'), logout_url=url_for('logout'), theme=theme, notifications=notifications) }}
+
+{{ ui.announcement_banner(announcement) }}
+<div class="shell-container">
+  <div class="panel panel-narrow">
+    <h1>Help &amp; support</h1>
+    <p class="sub">Answers to common questions, and a way to reach an admin.</p>
+
+    <h2>FAQ</h2>
+    <div class="faq-list">
+      {% for question, answer in faq_items %}
+      <details class="faq-item">
+        <summary>{{ question }}</summary>
+        <p>{{ answer }}</p>
+      </details>
+      {% endfor %}
+    </div>
+
+    <h2>Submit a support ticket</h2>
+    <form method="POST" action="{{ url_for('help_center') }}">
+      <div class="field">
+        <label for="subject">Subject</label>
+        <input type="text" id="subject" name="subject" required>
+      </div>
+      <div class="field">
+        <label for="message">Message</label>
+        <textarea id="message" name="message" rows="4" required style="width:100%; padding:11px 12px; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:14.5px; background:var(--surface-2); color:var(--ink); resize:vertical;"></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">Submit ticket</button>
+    </form>
+
+    <h2>Your tickets</h2>
+    {% if my_tickets %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Subject</th>
+          <th>Status</th>
+          <th>Submitted</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ticket in my_tickets %}
+        <tr>
+          <td>{{ ticket.subject }}</td>
+          <td>
+            {% if ticket.status == "resolved" %}
+            <span class="badge badge-resolved"><span class="badge-dot"></span>Resolved</span>
+            {% else %}
+            <span class="badge badge-open"><span class="badge-dot"></span>Open</span>
+            {% endif %}
+          </td>
+          <td>{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">You haven't submitted any tickets yet.</div>
+    {% endif %}
+
+    {% if role == "admin" %}
+    <p class="hint" style="margin-top:24px;"><a href="{{ url_for('admin_tickets') }}">Manage all support tickets →</a></p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

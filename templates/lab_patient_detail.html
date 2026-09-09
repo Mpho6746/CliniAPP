@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}{{ patient.full_name }} — CliniApp{% endblock %}
+{% block page_class %}shell{% endblock %}
+
+{% block content %}
+{{ ui.topbar(staff.full_name, "Lab Technician", show_search=true, search_action=url_for('search'), help_url=url_for('help_center'), switch_url=url_for('staff_logout'), logout_url=url_for('logout'), theme=theme, notifications=notifications) }}
+{{ ui.tab_nav([
+  ("overview", "Overview", "workspace"),
+  ("patients", "Patients", "lab_patients"),
+], "patients") }}
+
+{{ ui.announcement_banner(announcement) }}
+<div class="shell-container">
+  <div class="panel">
+    <div class="panel-header">
+      <div>
+        <div class="table-avatar-cell">
+          <div class="table-avatar" style="width:40px; height:40px; font-size:14px;">{{ ui.initials(patient.full_name) }}</div>
+          <div>
+            <h1 style="margin:0;">{{ patient.full_name }}</h1>
+            <p class="sub">Patient #{{ patient.patient_number }} · {{ patient.gender }} · Born {{ patient.date_of_birth }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="panel-header-actions">
+        <a href="{{ url_for('lab_patients') }}" class="btn btn-secondary btn-small">Back to patients</a>
+      </div>
+    </div>
+    <p class="sub" style="margin-top:12px;">{{ patient.phone_number }}{% if patient.email %} · {{ patient.email }}{% endif %}</p>
+  </div>
+
+  <div class="panel" style="margin-top:20px;">
+    <h2 style="margin-top:0;">Record lab result</h2>
+    <form method="POST" action="{{ url_for('lab_patient_detail', patient_id=patient.id) }}">
+      <div class="field">
+        <label for="test_name">Test name</label>
+        <input type="text" id="test_name" name="test_name" placeholder="e.g. Full blood count" required>
+      </div>
+      <div class="field">
+        <label for="result">Result</label>
+        <input type="text" id="result" name="result" placeholder="e.g. Normal, Hb 13.5 g/dL" required>
+      </div>
+      <div class="field">
+        <label for="notes">Notes</label>
+        <textarea id="notes" name="notes" rows="3" style="width:100%; padding:11px 12px; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:14.5px; background:var(--surface-2); color:var(--ink); resize:vertical;"></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">Add result</button>
+    </form>
+  </div>
+
+  <div class="panel" style="margin-top:20px;">
+    <h2 style="margin-top:0;">Lab result history</h2>
+    {% if lab_results %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Technician</th>
+          <th>Test</th>
+          <th>Result</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in lab_results %}
+        <tr>
+          <td>{{ r.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td>{{ r.technician.full_name }}</td>
+          <td>{{ r.test_name }}</td>
+          <td>{{ r.result }}</td>
+          <td>{{ r.notes }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">No lab results recorded yet.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

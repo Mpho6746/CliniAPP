@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="{{ session.get('theme', 'light') }}">
+<html lang="en" data-theme="{{ theme }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,82 +8,22 @@
 </head>
 <body>
 
-{% from "_icons.html" import icon %}
-
-<div class="app-shell">
-  <aside class="sidebar">
-    <a class="brand" href="{{ url_for('home') }}">
-      <span class="brand-mark">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
-          <polyline points="2 13 8 13 10.5 6 14 21 16.5 13 22 13" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </span>
-      {{ clinic_name }}
-    </a>
-
-    <nav class="side-nav">
-      {% if session.admin_username %}
-        <div class="side-section-label">Admin</div>
-        <a class="side-nav-item {% if request.endpoint == 'admin_dashboard' %}active{% endif %}" href="{{ url_for('admin_dashboard') }}"><span class="side-icon">{{ icon('dashboard') }}</span>Dashboard</a>
-        <a class="side-nav-item {% if request.endpoint == 'admin' and request.args.get('tab', 'register') == 'register' %}active{% endif %}" href="{{ url_for('admin', tab='register') }}"><span class="side-icon">{{ icon('user-plus') }}</span>Register patient</a>
-        <a class="side-nav-item {% if request.endpoint == 'admin' and request.args.get('tab') == 'list' %}active{% endif %}" href="{{ url_for('admin', tab='list') }}"><span class="side-icon">{{ icon('users') }}</span>Patients</a>
-        <a class="side-nav-item {% if request.endpoint == 'admin_appointments' %}active{% endif %}" href="{{ url_for('admin_appointments') }}"><span class="side-icon">{{ icon('calendar') }}</span>Appointments</a>
-        <a class="side-nav-item {% if request.endpoint == 'admin' and request.args.get('tab') == 'medications' %}active{% endif %}" href="{{ url_for('admin', tab='medications') }}"><span class="side-icon">{{ icon('pill') }}</span>Medications</a>
-        <a class="side-nav-item {% if request.endpoint == 'records' %}active{% endif %}" href="{{ url_for('records') }}"><span class="side-icon">{{ icon('folder') }}</span>Records</a>
-        <a class="side-nav-item {% if request.endpoint == 'statistics' %}active{% endif %}" href="{{ url_for('statistics') }}"><span class="side-icon">{{ icon('bar-chart') }}</span>Statistics</a>
-        <a class="side-nav-item {% if request.endpoint == 'audit_log_page' %}active{% endif %}" href="{{ url_for('audit_log_page') }}"><span class="side-icon">{{ icon('shield') }}</span>Audit log</a>
-      {% elif session.doctor_username %}
-        <div class="side-section-label">Doctor</div>
-        <a class="side-nav-item {% if request.endpoint in ('doctor_panel', 'patient_detail') %}active{% endif %}" href="{{ url_for('doctor_panel') }}"><span class="side-icon">{{ icon('clipboard') }}</span>My patients</a>
-      {% elif session.nurse_username %}
-        <div class="side-section-label">Nursing</div>
-        <a class="side-nav-item {% if request.endpoint in ('nursing', 'vitals_history_page') %}active{% endif %}" href="{{ url_for('nursing') }}"><span class="side-icon">{{ icon('heart') }}</span>Nursing station</a>
-        <a class="side-nav-item {% if request.endpoint == 'nursing_handover' %}active{% endif %}" href="{{ url_for('nursing_handover') }}"><span class="side-icon">{{ icon('refresh') }}</span>Shift handover</a>
-      {% elif session.pharmacist_username %}
-        <div class="side-section-label">Pharmacist</div>
-        <a class="side-nav-item {% if request.endpoint == 'pharmacist' %}active{% endif %}" href="{{ url_for('pharmacist') }}"><span class="side-icon">{{ icon('pill') }}</span>Dispense</a>
-      {% endif %}
-
-      <div class="side-section-label">Other menu</div>
-      <a class="side-nav-item {% if request.endpoint == 'admin' and request.args.get('tab') == 'products' %}active{% endif %}" href="{{ url_for('admin', tab='products') }}"><span class="side-icon">{{ icon('box') }}</span>Product &amp; stock</a>
-      {% if not (session.doctor_username or session.nurse_username or session.pharmacist_username) %}
-      <a class="side-nav-item {% if request.endpoint in ('staff_auth', 'doctor_panel', 'patient_detail', 'nursing', 'nursing_handover', 'vitals_history_page', 'pharmacist') %}active{% endif %}" href="{{ url_for('staff_auth') }}"><span class="side-icon">{{ icon('briefcase') }}</span>Staff login</a>
-      {% endif %}
-    </nav>
-
-    <div class="side-bottom">
-      {% if session.admin_username %}
-      <a class="side-nav-item {% if request.endpoint == 'admin_settings_page' %}active{% endif %}" href="{{ url_for('admin_settings_page') }}"><span class="side-icon">{{ icon('sliders') }}</span>Settings</a>
-      {% endif %}
-      {% if session.admin_username %}
-      <a class="side-nav-item" href="{{ url_for('admin_logout') }}"><span class="side-icon">{{ icon('log-out') }}</span>Log out</a>
-      {% elif session.doctor_username or session.nurse_username or session.pharmacist_username %}
-      <a class="side-nav-item" href="{{ url_for('staff_logout') }}"><span class="side-icon">{{ icon('log-out') }}</span>Log out</a>
-      {% endif %}
-    </div>
-  </aside>
-
-  <div class="main">
-    <header class="topbar">
-      <div class="topbar-inner">
-        <div class="page-title">{% block page_title %}{% endblock %}</div>
-        <div class="topbar-actions">{% block topbar_actions %}{% endblock %}</div>
+<div class="page {% block page_class %}{% endblock %}">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-stack">
+        {% for category, message in messages %}
+          <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
       </div>
-    </header>
+    {% endif %}
+  {% endwith %}
 
-    <div class="container">
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          {% for category, message in messages %}
-            <div class="flash flash-{{ category }}">{{ message }}</div>
-          {% endfor %}
-        {% endif %}
-      {% endwith %}
-
-      {% block content %}{% endblock %}
-    </div>
-  </div>
+  {% block content %}{% endblock %}
 </div>
 
+<script src="{{ url_for('static', filename='app.js') }}" defer></script>
+<script src="{{ url_for('static', filename='dashboard.js') }}" defer></script>
+<script src="{{ url_for('static', filename='columns.js') }}" defer></script>
 </body>
 </html>

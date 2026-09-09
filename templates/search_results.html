@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}Search — CliniApp{% endblock %}
+{% block page_class %}shell{% endblock %}
+
+{% block content %}
+{{ ui.topbar(staff.full_name, role_label, show_search=true, search_value=q, search_action=url_for('search'), help_url=url_for('help_center'), switch_url=url_for('staff_logout'), logout_url=url_for('logout'), theme=theme, notifications=notifications) }}
+
+{{ ui.announcement_banner(announcement) }}
+<div class="shell-container">
+  <div class="panel">
+    <h1>Search results</h1>
+    <p class="sub">{% if q %}Showing matches for “{{ q }}”.{% else %}Type something in the search box above.{% endif %}</p>
+
+    {% if q %}
+    <h2>Patients</h2>
+    {% if patients %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Patient #</th>
+          <th>Phone</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for patient in patients %}
+        <tr>
+          <td>
+            <div class="table-avatar-cell">
+              <div class="table-avatar">{{ ui.initials(patient.full_name) }}</div>
+              {{ patient.full_name }}
+            </div>
+          </td>
+          <td>{{ patient.patient_number }}</td>
+          <td>{{ patient.phone_number }}</td>
+          <td>
+            {% if role == "admin" %}
+            <a href="{{ url_for('admin_edit_patient', patient_id=patient.id) }}" class="btn btn-secondary btn-small">View</a>
+            {% elif role == "doctor" %}
+            <a href="{{ url_for('doctor_patient_detail', patient_id=patient.id) }}" class="btn btn-secondary btn-small">View</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">No patients match “{{ q }}”.</div>
+    {% endif %}
+
+    {% if role == "admin" %}
+    <h2>Staff</h2>
+    {% if staff_matches %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Employee #</th>
+          <th>Role</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for staff_role, staff_member in staff_matches %}
+        <tr>
+          <td>
+            <div class="table-avatar-cell">
+              <div class="table-avatar">{{ ui.initials(staff_member.full_name) }}</div>
+              {{ staff_member.full_name }}
+            </div>
+          </td>
+          <td>{{ staff_member.employee_number }}</td>
+          <td>{{ staff_labels[staff_role] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">No staff match “{{ q }}”.</div>
+    {% endif %}
+    {% endif %}
+
+    <h2>Pages</h2>
+    {% if pages %}
+    <div style="display:grid; gap:8px;">
+      {% for label, endpoint in pages %}
+      <a href="{{ url_for(endpoint) }}" class="btn btn-secondary" style="width:auto; justify-self:start;">{{ label }}</a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">No pages match “{{ q }}”.</div>
+    {% endif %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

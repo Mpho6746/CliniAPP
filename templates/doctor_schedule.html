@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}Schedule for {{ day.strftime('%Y-%m-%d') }} — CliniApp{% endblock %}
+{% block page_class %}shell{% endblock %}
+
+{% block content %}
+{{ ui.topbar(staff.full_name, "Doctor", show_search=true, search_action=url_for('search'), help_url=url_for('help_center'), switch_url=url_for('staff_logout'), logout_url=url_for('logout'), theme=theme, notifications=notifications) }}
+{{ ui.tab_nav([
+  ("overview", "Overview", "workspace"),
+  ("patients", "Patients", "doctor_patients"),
+], "overview") }}
+{{ ui.announcement_banner(announcement) }}
+<div class="shell-container">
+  <div class="panel">
+    <div class="panel-header">
+      <div>
+        <h1>{{ day.strftime('%A, %B') }} {{ day.day }}, {{ day.year }}</h1>
+        <p class="sub">{{ patients|length }} patient{{ 's' if patients|length != 1 }} with a next appointment on this day.</p>
+      </div>
+      <div class="panel-header-actions">
+        <a href="{{ url_for('workspace') }}" class="btn btn-secondary btn-small">Back to overview</a>
+      </div>
+    </div>
+
+    {% if patients %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Patient #</th>
+          <th>Phone</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for patient in patients %}
+        <tr>
+          <td>
+            <div class="table-avatar-cell">
+              <div class="table-avatar">{{ ui.initials(patient.full_name) }}</div>
+              {{ patient.full_name }}
+            </div>
+          </td>
+          <td>{{ patient.patient_number }}</td>
+          <td>{{ patient.phone_number }}</td>
+          <td>
+            <span class="badge badge-{{ patient.status|lower }}"><span class="badge-dot"></span>{{ patient.status }}</span>
+          </td>
+          <td>
+            <a href="{{ url_for('doctor_patient_detail', patient_id=patient.id) }}" class="btn btn-secondary btn-small">View</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">No appointments scheduled for this day.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Register — CliniApp{% endblock %}
+
+{% block content %}
+<div class="auth-card">
+  <div class="brand">
+    <span class="brand-mark">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <polyline points="2 13 8 13 10.5 6 14 21 16.5 13 22 13" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </span>
+    CliniApp
+  </div>
+
+  <h1>Create an account</h1>
+  <p class="sub">Get started with CliniApp.</p>
+
+  <form method="POST" action="{{ url_for('register') }}">
+    <div class="field">
+      <label for="hospital_name">Hospital name</label>
+      <input type="text" id="hospital_name" name="hospital_name" autofocus required>
+    </div>
+    <div class="field">
+      <label for="hospital_number">Hospital number</label>
+      <input type="text" id="hospital_number" name="hospital_number" required>
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" minlength="6" required>
+    </div>
+    <div class="field">
+      <label for="confirm">Confirm password</label>
+      <input type="password" id="confirm" name="confirm" minlength="6" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Create account</button>
+  </form>
+
+  <p class="hint">Already have an account? <a href="{{ url_for('clinic_login') }}">Log in</a></p>
+</div>
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}Support Tickets — CliniApp{% endblock %}
+{% block page_class %}shell{% endblock %}
+
+{% block content %}
+{{ ui.topbar(staff.full_name, "Admin", show_search=true, search_action=url_for('search'), help_url=url_for('help_center'), switch_url=url_for('staff_logout'), logout_url=url_for('logout'), theme=theme, notifications=notifications) }}
+{{ ui.tab_nav([
+  ("overview", "Overview", "workspace"),
+  ("patients", "Patients", "admin_patients"),
+  ("staff", "Add Staff", "staff_register"),
+  ("report", "Report", "admin_report"),
+  ("settings", "Settings", "admin_settings"),
+], none) }}
+
+{{ ui.announcement_banner(announcement) }}
+<div class="shell-container">
+  <div class="panel">
+    <div class="panel-header">
+      <div>
+        <h1>Support tickets</h1>
+        <p class="sub">{{ tickets|length }} total.</p>
+      </div>
+      <div class="panel-header-actions">
+        <a href="{{ url_for('help_center') }}" class="btn btn-secondary btn-small">Back to Help</a>
+      </div>
+    </div>
+
+    {% if tickets %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Subject</th>
+          <th>From</th>
+          <th>Message</th>
+          <th>Status</th>
+          <th>Submitted</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ticket in tickets %}
+        <tr>
+          <td>{{ ticket.subject }}</td>
+          <td>{{ ticket.submitted_by_name }} ({{ staff_labels[ticket.submitted_by_role] }})</td>
+          <td>{{ ticket.message }}</td>
+          <td>
+            {% if ticket.status == "resolved" %}
+            <span class="badge badge-resolved"><span class="badge-dot"></span>Resolved</span>
+            {% else %}
+            <span class="badge badge-open"><span class="badge-dot"></span>Open</span>
+            {% endif %}
+          </td>
+          <td>{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td>
+            {% if ticket.status != "resolved" %}
+            <form method="POST" action="{{ url_for('admin_resolve_ticket', ticket_id=ticket.id) }}">
+              <button type="submit" class="btn btn-secondary btn-small">Mark resolved</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">No support tickets yet.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
