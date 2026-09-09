@@ -1,5 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Pharmacist — MediCare Clinic{% endblock %}
+{% block title %}Pharmacist — CliniApp{% endblock %}
+{% block page_title %}Pharmacist{% endblock %}
+{% block topbar_actions %}<span>Signed in as {{ pharmacist.full_name }}</span>{% endblock %}
 
 {% block content %}
 <div class="hero" style="padding-top:32px;">

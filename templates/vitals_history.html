@@ -1,11 +1,8 @@
 {% extends "base.html" %}
 {% block title %}{{ file.patient.full_name }} — Vitals history{% endblock %}
 
-{% block topbar_actions %}
-<span>Signed in as {{ nurse.full_name }}</span>
-<a class="back" href="{{ url_for('nursing') }}">Nursing station</a>
-<a class="back" href="{{ url_for('nurse_logout') }}">Log out</a>
-{% endblock %}
+{% block page_title %}Vitals history{% endblock %}
+{% block topbar_actions %}<a class="back" href="{{ url_for('nursing') }}">Back to nursing station</a>{% endblock %}
 
 {% block content %}
 <div class="hero" style="padding-top:32px;">

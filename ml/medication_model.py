@@ -139,12 +139,18 @@ class MedicationSuggestion:
     confidence: float  # 0-100
 
 
-def _build_model() -> Pipeline:
+def _build_model(extra_examples: list[tuple[str, str]] | None = None) -> Pipeline:
+    """Train the pipeline on the hand-written TRAINING_DATA plus any
+    admin-fed (label, text) examples pulled from the database."""
     texts, labels = [], []
     for label, examples in TRAINING_DATA.items():
         for example in examples:
             texts.append(example)
             labels.append(label)
+
+    for label, text in extra_examples or []:
+        texts.append(text)
+        labels.append(label)
 
     features = FeatureUnion([
         ("word", TfidfVectorizer(ngram_range=(1, 2), stop_words="english", min_df=1, sublinear_tf=True)),
@@ -159,8 +165,14 @@ def _build_model() -> Pipeline:
 
 
 # Trained once when the module is first imported (dataset is tiny, fits in
-# well under a second) and reused for every prediction after that.
+# well under a second) and reused for every prediction after that. Call
+# retrain() whenever admin-fed training examples change.
 _model = _build_model()
+
+
+def retrain(extra_examples: list[tuple[str, str]] | None = None) -> None:
+    global _model
+    _model = _build_model(extra_examples)
 
 
 def predict_medications(notes_text: str, top_n: int = 3) -> list[MedicationSuggestion]:

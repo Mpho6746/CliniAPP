@@ -1,22 +1,38 @@
-{% extends "base.html" %}
-{% block title %}Call a nurse — MediCare Clinic{% endblock %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Call a nurse — CliniApp</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
 
-{% block topbar_actions %}{% endblock %}
+<div class="container" style="max-width:560px;">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="flash flash-{{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
 
-{% block content %}
-<div class="hero" style="padding-top:32px;">
-  <h1 style="font-size:26px;">Hi {{ file.patient.full_name.split(' ')[0] }}, what do you need?</h1>
-  <p>Tap a button below and a nurse will be notified right away.</p>
-</div>
+  <div class="hero" style="padding-top:32px;">
+    <h1 style="font-size:26px;">Hi {{ file.patient.full_name.split(' ')[0] }}, what do you need?</h1>
+    <p>Tap a button below and a nurse will be notified right away.</p>
+  </div>
 
-<div class="panel">
-  <div class="request-grid">
-    {% for key, label in categories %}
-    <form method="POST" action="{{ url_for('submit_patient_request', id_number=file.patient.id_number) }}">
-      <input type="hidden" name="category" value="{{ key }}">
-      <button type="submit" class="request-btn">{{ label }}</button>
-    </form>
-    {% endfor %}
+  <div class="panel">
+    <div class="request-grid">
+      {% for key, label in categories %}
+      <form method="POST" action="{{ url_for('submit_patient_request', id_number=file.patient.id_number) }}">
+        <input type="hidden" name="category" value="{{ key }}">
+        <button type="submit" class="request-btn">{{ label }}</button>
+      </form>
+      {% endfor %}
+    </div>
   </div>
 </div>
-{% endblock %}
+
+</body>
+</html>

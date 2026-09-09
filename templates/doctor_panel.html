@@ -1,10 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Dr. {{ doctor.full_name }} — MediCare Clinic{% endblock %}
+{% block title %}Dr. {{ doctor.full_name }} — CliniApp{% endblock %}
 
-{% block topbar_actions %}
-<a class="back" href="{{ url_for('home') }}">All stations</a>
-<a href="{{ url_for('doctor_logout') }}">Log out</a>
-{% endblock %}
+{% block page_title %}My patients{% endblock %}
+{% block topbar_actions %}<span>Signed in as Dr. {{ doctor.full_name }}</span>{% endblock %}
 
 {% block content %}
 <div class="hero" style="padding-top:32px;">

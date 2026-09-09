@@ -1,11 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Shift handover — MediCare Clinic{% endblock %}
+{% block title %}Shift handover — CliniApp{% endblock %}
 
-{% block topbar_actions %}
-<span>Signed in as {{ nurse.full_name }}</span>
-<a class="back" href="{{ url_for('nursing') }}">Nursing station</a>
-<a class="back" href="{{ url_for('nurse_logout') }}">Log out</a>
-{% endblock %}
+{% block page_title %}Shift handover{% endblock %}
+{% block topbar_actions %}<span>Signed in as {{ nurse.full_name }}</span>{% endblock %}
 
 {% block content %}
 <div class="hero" style="padding-top:32px;">

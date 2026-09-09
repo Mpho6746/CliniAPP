@@ -1,4 +1,4 @@
-# MediCare Clinic — Flask port
+# CliniApp — Flask port
 
 A Python/Flask rewrite of the original Flutter/Dart clinic app. Same
 workflow, same six stations (Admin, Doctor, Nursing, Pharmacist, Records,

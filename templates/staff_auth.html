@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Staff Login — CliniApp{% endblock %}
+
+{% block content %}
+<div class="hero" style="padding-top:32px;">
+  <h1 style="font-size:26px;">Staff sign-in</h1>
+  <p>For doctors, nurses, and pharmacists. Enter your employee number and PIN — we'll take you to the right place.</p>
+</div>
+
+<div class="panel">
+  <h2>Log in</h2>
+  <form method="POST" action="{{ url_for('staff_login') }}">
+    <div class="field">
+      <label for="employee_number">Employee number (6 digits)</label>
+      <input type="text" id="employee_number" name="employee_number" inputmode="numeric" maxlength="6" placeholder="123456" required>
+    </div>
+    <div class="field">
+      <label for="pin">PIN (4 digits)</label>
+      <input type="password" id="pin" name="pin" inputmode="numeric" maxlength="4" placeholder="0000" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Log in</button>
+  </form>
+  <p class="hint" style="margin-top:14px;">Don't have an employee number? Ask an admin to add you in Settings → Staff → Users.</p>
+</div>
+{% endblock %}

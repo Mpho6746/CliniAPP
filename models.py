@@ -1,11 +1,12 @@
 """
-Data models for MediCare Clinic.
+Data models for CliniApp.
 
 Backed by SQLite via Flask-SQLAlchemy, so registered patients, doctors,
 and nurses persist across restarts of the dev server.
 """
 
-from datetime import datetime, date
+import random
+from datetime import datetime, date, timedelta
 
 from flask_sqlalchemy import SQLAlchemy
 
@@ -37,6 +38,12 @@ REQUEST_CATEGORIES = [
 REQUEST_STATUS_OPEN = "open"
 REQUEST_STATUS_DONE = "done"
 
+APPOINTMENT_SCHEDULED = "scheduled"
+APPOINTMENT_COMPLETED = "completed"
+APPOINTMENT_CANCELLED = "cancelled"
+APPOINTMENT_NO_SHOW = "no_show"
+APPOINTMENT_STATUSES = (APPOINTMENT_SCHEDULED, APPOINTMENT_COMPLETED, APPOINTMENT_CANCELLED, APPOINTMENT_NO_SHOW)
+
 # Abnormal-value thresholds for adult vitals (simple, widely-used ranges —
 # a decision-support flag for nursing, not a clinical calculator).
 VITAL_TEMP_LOW = 35.0
@@ -47,6 +54,9 @@ VITAL_BP_SYSTOLIC_LOW = 90
 VITAL_BP_SYSTOLIC_HIGH = 140
 VITAL_BP_DIASTOLIC_LOW = 60
 VITAL_BP_DIASTOLIC_HIGH = 90
+
+# A product is flagged "expiring soon" within this many days of its expiry date.
+EXPIRY_WARNING_DAYS = 30
 
 # Starter drug catalog — seeded once if the Medication table is empty.
 STARTER_MEDICATIONS = [
@@ -158,6 +168,44 @@ class Medication(db.Model):
     category = db.Column(db.String(50), default="")  # e.g. "Analgesic"
 
 
+class MedicationTrainingExample(db.Model):
+    """Admin-fed training data for the medication-suggestion model: a
+    doctor-note-style text paired with the medication/plan label it implies."""
+    id = db.Column(db.Integer, primary_key=True)
+    label = db.Column(db.String(150), nullable=False)
+    text = db.Column(db.Text, nullable=False)
+    added_by = db.Column(db.String(6), default="")
+    added_at = db.Column(db.DateTime, default=datetime.now)
+
+
+class Appointment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.String(13), db.ForeignKey("patient.id_number"), nullable=False)
+    patient = db.relationship("Patient", backref=db.backref("appointments", lazy="dynamic"))
+    doctor_username = db.Column(db.String(6), db.ForeignKey("doctor.username"), nullable=True)
+    doctor = db.relationship("Doctor")
+    scheduled_at = db.Column(db.DateTime, nullable=False)
+    reason = db.Column(db.String(200), default="")
+    status = db.Column(db.String(20), default=APPOINTMENT_SCHEDULED)
+    notes = db.Column(db.Text, default="")
+    created_by = db.Column(db.String(6), default="")  # admin username who scheduled it
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+
+class Product(db.Model):
+    """A physical stock item — medical supplies, equipment, or drug stock on
+    hand. Separate from Medication, which is the prescribing catalog."""
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(150), nullable=False)
+    category = db.Column(db.String(50), default="")  # e.g. "Medication", "Supply", "Equipment"
+    quantity = db.Column(db.Integer, default=0)
+    unit = db.Column(db.String(30), default="")  # e.g. "boxes", "units", "bottles"
+    reorder_level = db.Column(db.Integer, default=0)  # flagged low-stock at or below this
+    expiry_date = db.Column(db.Date, nullable=True)
+    added_by = db.Column(db.String(6), default="")
+    updated_at = db.Column(db.DateTime, default=datetime.now)
+
+
 class Prescription(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.String(13), db.ForeignKey("patient.id_number"), nullable=False)
@@ -186,12 +234,21 @@ class Doctor(db.Model):
     username = db.Column(db.String(6), primary_key=True)
     pin = db.Column(db.String(4), nullable=False)
     full_name = db.Column(db.String(200), nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
 
 
 class Nurse(db.Model):
     username = db.Column(db.String(6), primary_key=True)
     pin = db.Column(db.String(4), nullable=False)
     full_name = db.Column(db.String(200), nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
+
+
+class Pharmacist(db.Model):
+    username = db.Column(db.String(6), primary_key=True)
+    pin = db.Column(db.String(4), nullable=False)
+    full_name = db.Column(db.String(200), nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
 
 
 class Admin(db.Model):
@@ -209,12 +266,57 @@ class AuditLog(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
 
 
+class ClinicSettings(db.Model):
+    """Singleton row of clinic-wide, admin-configurable settings."""
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Clinic > General / Contact
+    clinic_name = db.Column(db.String(150), default="CliniApp")
+    clinic_phone = db.Column(db.String(30), default="")
+    clinic_address = db.Column(db.String(300), default="")
+
+    # System > Security
+    session_timeout_minutes = db.Column(db.Integer, default=30)
+    login_lockout_threshold = db.Column(db.Integer, default=5)  # failed attempts before lockout
+    login_lockout_window_minutes = db.Column(db.Integer, default=15)  # lockout window
+
+    # Clinical > Vital Signs thresholds
+    temp_low = db.Column(db.Float, default=VITAL_TEMP_LOW)
+    temp_high = db.Column(db.Float, default=VITAL_TEMP_HIGH)
+    pulse_low = db.Column(db.Integer, default=VITAL_PULSE_LOW)
+    pulse_high = db.Column(db.Integer, default=VITAL_PULSE_HIGH)
+    bp_systolic_low = db.Column(db.Integer, default=VITAL_BP_SYSTOLIC_LOW)
+    bp_systolic_high = db.Column(db.Integer, default=VITAL_BP_SYSTOLIC_HIGH)
+    bp_diastolic_low = db.Column(db.Integer, default=VITAL_BP_DIASTOLIC_LOW)
+    bp_diastolic_high = db.Column(db.Integer, default=VITAL_BP_DIASTOLIC_HIGH)
+
+
 def find_file(id_number: str) -> PatientFile | None:
     return db.session.get(PatientFile, id_number)
 
 
 def find_admin(username: str) -> Admin | None:
     return db.session.get(Admin, username)
+
+
+def find_staff_by_employee_number(employee_number: str):
+    """Look up an employee number across every staff role and return
+    (role, staff_object), or (None, None) if it doesn't belong to anyone."""
+    for role, model_cls in STAFF_MODELS.items():
+        staff = db.session.get(model_cls, employee_number)
+        if staff is not None:
+            return role, staff
+    return None, None
+
+
+def generate_employee_number() -> str:
+    """A random 6-digit employee number guaranteed unique across every
+    staff role (and admin, to avoid any cross-login-page confusion)."""
+    while True:
+        candidate = f"{random.randint(0, 999999):06d}"
+        _, staff = find_staff_by_employee_number(candidate)
+        if staff is None and find_admin(candidate) is None:
+            return candidate
 
 
 def log_action(role: str, username: str, action: str, details: str = "") -> None:
@@ -234,12 +336,81 @@ def find_nurse(username: str) -> Nurse | None:
     return db.session.get(Nurse, username)
 
 
+def find_pharmacist(username: str) -> Pharmacist | None:
+    return db.session.get(Pharmacist, username)
+
+
 def all_files() -> list[PatientFile]:
     return PatientFile.query.order_by(PatientFile.registered_at).all()
 
 
 def all_doctors() -> list[Doctor]:
     return Doctor.query.all()
+
+
+def all_nurses() -> list[Nurse]:
+    return Nurse.query.all()
+
+
+def all_pharmacists() -> list[Pharmacist]:
+    return Pharmacist.query.all()
+
+
+def active_doctors() -> list[Doctor]:
+    return Doctor.query.filter_by(is_active=True).all()
+
+
+def active_nurses() -> list[Nurse]:
+    return Nurse.query.filter_by(is_active=True).all()
+
+
+def active_pharmacists() -> list[Pharmacist]:
+    return Pharmacist.query.filter_by(is_active=True).all()
+
+
+STAFF_MODELS = {"doctor": Doctor, "nurse": Nurse, "pharmacist": Pharmacist}
+
+
+def create_staff(role: str, username: str, pin: str, full_name: str):
+    model_cls = STAFF_MODELS[role]
+    staff = model_cls(username=username, pin=pin, full_name=full_name)
+    db.session.add(staff)
+    db.session.commit()
+    return staff
+
+
+def update_staff(role: str, username: str, full_name: str | None = None, new_pin: str | None = None):
+    model_cls = STAFF_MODELS[role]
+    staff = db.session.get(model_cls, username)
+    if staff is None:
+        return None
+    if full_name:
+        staff.full_name = full_name
+    if new_pin:
+        staff.pin = new_pin
+    db.session.commit()
+    return staff
+
+
+def set_staff_active(role: str, username: str, active: bool):
+    model_cls = STAFF_MODELS[role]
+    staff = db.session.get(model_cls, username)
+    if staff is not None:
+        staff.is_active = active
+        db.session.commit()
+    return staff
+
+
+def recent_failed_logins(role: str, username: str, window_minutes: int) -> int:
+    cutoff = datetime.now() - timedelta(minutes=window_minutes)
+    return (
+        AuditLog.query
+        .filter(
+            AuditLog.role == role, AuditLog.username == username,
+            AuditLog.action == "login_failed", AuditLog.created_at >= cutoff,
+        )
+        .count()
+    )
 
 
 def active_files() -> list[PatientFile]:
@@ -288,32 +459,44 @@ def _parse_bp(blood_pressure: str) -> tuple[int | None, int | None]:
         return None, None
 
 
+def get_clinic_settings() -> ClinicSettings:
+    """The single clinic-settings row, created with defaults on first access."""
+    settings = ClinicSettings.query.first()
+    if settings is None:
+        settings = ClinicSettings()
+        db.session.add(settings)
+        db.session.commit()
+    return settings
+
+
 def evaluate_vitals(temperature: str, bp_systolic: int | None, bp_diastolic: int | None, pulse: str) -> list[str]:
-    """Return a list of human-readable abnormal-value flags for a set of vitals."""
+    """Return a list of human-readable abnormal-value flags for a set of vitals,
+    checked against the clinic's admin-configurable thresholds."""
+    s = get_clinic_settings()
     flags = []
 
     try:
         temp = float(temperature)
-        if temp >= VITAL_TEMP_HIGH:
+        if temp >= s.temp_high:
             flags.append("High temperature")
-        elif temp <= VITAL_TEMP_LOW:
+        elif temp <= s.temp_low:
             flags.append("Low temperature")
     except (TypeError, ValueError):
         pass
 
     try:
         pulse_value = float(pulse)
-        if pulse_value >= VITAL_PULSE_HIGH:
+        if pulse_value >= s.pulse_high:
             flags.append("High pulse")
-        elif pulse_value <= VITAL_PULSE_LOW:
+        elif pulse_value <= s.pulse_low:
             flags.append("Low pulse")
     except (TypeError, ValueError):
         pass
 
     if bp_systolic is not None and bp_diastolic is not None:
-        if bp_systolic >= VITAL_BP_SYSTOLIC_HIGH or bp_diastolic >= VITAL_BP_DIASTOLIC_HIGH:
+        if bp_systolic >= s.bp_systolic_high or bp_diastolic >= s.bp_diastolic_high:
             flags.append("High blood pressure")
-        elif bp_systolic <= VITAL_BP_SYSTOLIC_LOW or bp_diastolic <= VITAL_BP_DIASTOLIC_LOW:
+        elif bp_systolic <= s.bp_systolic_low or bp_diastolic <= s.bp_diastolic_low:
             flags.append("Low blood pressure")
 
     return flags
@@ -359,6 +542,42 @@ def latest_vitals_flags(patient_id: str) -> list[str]:
     return [f.strip() for f in reading.flags.split(",")]
 
 
+def migrate_schema() -> None:
+    """Add columns introduced after a table already existed on disk.
+
+    db.create_all() only creates missing tables — it never alters an
+    existing one — so a database created before a model gained new columns
+    would otherwise error on every query that touches them. This adds any
+    missing columns in place, preserving existing rows and data. New tables
+    (e.g. a brand-new model) don't need an entry here — create_all() already
+    handles those; this is only for columns added to a table that already
+    exists somewhere out there.
+    """
+    inspector = db.inspect(db.engine)
+    table_names = set(inspector.get_table_names())
+
+    def add_missing_columns(table: str, columns: dict[str, str]) -> None:
+        if table not in table_names:
+            return
+        existing = {col["name"] for col in inspector.get_columns(table)}
+        for name, ddl_type in columns.items():
+            if name not in existing:
+                db.session.execute(db.text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl_type}"))
+
+    add_missing_columns("clinic_settings", {
+        "clinic_name": "VARCHAR(150) DEFAULT 'CliniApp'",
+        "clinic_phone": "VARCHAR(30) DEFAULT ''",
+        "clinic_address": "VARCHAR(300) DEFAULT ''",
+        "session_timeout_minutes": "INTEGER DEFAULT 30",
+        "login_lockout_threshold": "INTEGER DEFAULT 5",
+        "login_lockout_window_minutes": "INTEGER DEFAULT 15",
+    })
+    add_missing_columns("doctor", {"is_active": "BOOLEAN DEFAULT 1"})
+    add_missing_columns("nurse", {"is_active": "BOOLEAN DEFAULT 1"})
+
+    db.session.commit()
+
+
 def seed_medications() -> None:
     """Populate the drug catalog with starter entries, once, if it's empty."""
     if Medication.query.first() is not None:
@@ -374,6 +593,124 @@ def all_medications() -> list[Medication]:
 
 def find_medication(medication_id: int) -> Medication | None:
     return db.session.get(Medication, medication_id)
+
+
+def all_training_examples() -> list[MedicationTrainingExample]:
+    return MedicationTrainingExample.query.order_by(MedicationTrainingExample.added_at.desc()).all()
+
+
+def training_examples_as_tuples() -> list[tuple[str, str]]:
+    return [(e.label, e.text) for e in MedicationTrainingExample.query.all()]
+
+
+def add_training_example(label: str, text: str, added_by: str) -> MedicationTrainingExample:
+    example = MedicationTrainingExample(label=label, text=text, added_by=added_by)
+    db.session.add(example)
+    db.session.commit()
+    return example
+
+
+def delete_training_example(example_id: int) -> None:
+    example = db.session.get(MedicationTrainingExample, example_id)
+    if example is not None:
+        db.session.delete(example)
+        db.session.commit()
+
+
+def all_products() -> list[Product]:
+    return Product.query.order_by(Product.name).all()
+
+
+def find_product(product_id: int) -> Product | None:
+    return db.session.get(Product, product_id)
+
+
+def low_stock_products() -> list[Product]:
+    return [p for p in Product.query.all() if p.quantity <= p.reorder_level]
+
+
+def expiring_soon_products(days: int = EXPIRY_WARNING_DAYS) -> list[Product]:
+    cutoff = date.today() + timedelta(days=days)
+    return [
+        p for p in Product.query.filter(Product.expiry_date.isnot(None)).all()
+        if p.expiry_date <= cutoff
+    ]
+
+
+def adjust_product_stock(product_id: int, change: int) -> Product | None:
+    product = find_product(product_id)
+    if product is None:
+        return None
+    product.quantity = max(0, product.quantity + change)
+    product.updated_at = datetime.now()
+    db.session.commit()
+    return product
+
+
+def delete_product(product_id: int) -> None:
+    product = find_product(product_id)
+    if product is not None:
+        db.session.delete(product)
+        db.session.commit()
+
+
+def all_appointments() -> list[Appointment]:
+    return Appointment.query.order_by(Appointment.scheduled_at).all()
+
+
+def upcoming_appointments() -> list[Appointment]:
+    """Scheduled appointments from now on, soonest first."""
+    return (
+        Appointment.query
+        .filter(Appointment.status == APPOINTMENT_SCHEDULED, Appointment.scheduled_at >= datetime.now())
+        .order_by(Appointment.scheduled_at)
+        .all()
+    )
+
+
+def todays_appointments() -> list[Appointment]:
+    today = date.today()
+    start = datetime.combine(today, datetime.min.time())
+    end = datetime.combine(today, datetime.max.time())
+    return (
+        Appointment.query
+        .filter(Appointment.scheduled_at >= start, Appointment.scheduled_at <= end)
+        .order_by(Appointment.scheduled_at)
+        .all()
+    )
+
+
+def find_appointment(appointment_id: int) -> Appointment | None:
+    return db.session.get(Appointment, appointment_id)
+
+
+def set_appointment_status(appointment_id: int, status: str) -> Appointment | None:
+    appointment = find_appointment(appointment_id)
+    if appointment is not None:
+        appointment.status = status
+        db.session.commit()
+    return appointment
+
+
+def appointments_on(day: date) -> list[Appointment]:
+    start = datetime.combine(day, datetime.min.time())
+    end = datetime.combine(day, datetime.max.time())
+    return (
+        Appointment.query
+        .filter(Appointment.scheduled_at >= start, Appointment.scheduled_at <= end)
+        .order_by(Appointment.scheduled_at)
+        .all()
+    )
+
+
+def appointment_counts_for_month(year: int, month: int) -> dict[date, int]:
+    start = datetime(year, month, 1)
+    end = datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)
+    counts: dict[date, int] = {}
+    for a in Appointment.query.filter(Appointment.scheduled_at >= start, Appointment.scheduled_at < end).all():
+        d = a.scheduled_at.date()
+        counts[d] = counts.get(d, 0) + 1
+    return counts
 
 
 def prescriptions_for(patient_id: str) -> list[Prescription]:
