@@ -27,11 +27,16 @@ from models import (
     STAFF_LABELS,
     STAFF_ROLES,
     STAFF_SHIFT_OPTIONS,
+    MedicalAidScheme,
+    ServiceTariff,
     Staff,
     User,
     add_consultation,
+    add_discount_policy,
     add_lab_result,
+    add_medical_aid_scheme,
     add_prescription,
+    add_tariff,
     age_gender_breakdown,
     appointment_counts_for_month,
     appointments_on_date,
@@ -44,7 +49,11 @@ from models import (
     create_user,
     db,
     DEFAULT_DASHBOARD_WIDGETS,
+    delete_discount_policy,
+    delete_medical_aid_rate,
+    delete_medical_aid_scheme,
     delete_patient,
+    delete_tariff,
     demographics_summary,
     employee_number_taken,
     find_potential_duplicate_patients,
@@ -58,7 +67,11 @@ from models import (
     is_overdue,
     last_visit,
     list_all_tickets,
+    list_discount_policies,
+    list_medical_aid_rates,
+    list_medical_aid_schemes,
     list_patients,
+    list_tariffs,
     list_tickets_by_submitter,
     mark_patient_notes_read,
     new_patients_per_day,
@@ -79,9 +92,12 @@ from models import (
     resolve_ticket,
     save_dashboard_order,
     search_staff,
+    seed_medical_aid_schemes,
+    set_medical_aid_rate,
     staff_counts_by_role,
     theme_for_role,
     toggle_dashboard_widget,
+    toggle_direct_billing,
     total_patient_count,
     total_staff_count,
     unread_notes_by_patient,
@@ -89,6 +105,7 @@ from models import (
     update_announcement,
     update_clinic_profile,
     update_department_themes,
+    update_late_payment_fee,
     update_patient,
     update_pin_policy,
 )
@@ -133,9 +150,12 @@ app.secret_key = "dev-secret-key-change-me"  # replace with a real secret in pro
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(BASE_DIR, "clinic.db")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
+MEDICAL_AID_SCHEME_SEED = ["Discovery", "Bonitas", "Medscheme", "Liberty", "Momentum", "GEMS"]
+
 db.init_app(app)
 with app.app_context():
     db.create_all()
+    seed_medical_aid_schemes(MEDICAL_AID_SCHEME_SEED)
 
 
 def current_user():
@@ -1102,6 +1122,10 @@ def admin_settings():
         staff_labels=STAFF_LABELS,
         all_staff=Staff.query.order_by(Staff.role, Staff.full_name).all(),
         access_level_labels=ACCESS_LEVEL_LABELS,
+        tariffs=list_tariffs(),
+        discount_policies=list_discount_policies(),
+        medical_aid_schemes=list_medical_aid_schemes(),
+        medical_aid_rates=list_medical_aid_rates(),
     )
 
 
@@ -1202,6 +1226,194 @@ def admin_settings_password():
     user.set_password(new_password)
     db.session.commit()
     flash("Password changed.", "success")
+    return redirect(url_for("admin_settings"))
+
+
+# -------------------- Billing & Finance: tariffs and medical aid schemes --------------------
+
+@app.route("/admin/settings/tariffs/add", methods=["POST"])
+def admin_settings_tariffs_add():
+    redirect_response = require_admin("admin_ops", "write")
+    if redirect_response:
+        return redirect_response
+
+    name = request.form.get("name", "").strip()
+    category = request.form.get("category", "").strip()
+    price_raw = request.form.get("price", "").strip()
+    tariff_code = request.form.get("tariff_code", "").strip()
+    requires_preauth = request.form.get("requires_preauth") == "on"
+
+    errors = []
+    if not name:
+        errors.append("Enter a service name.")
+    try:
+        price = float(price_raw)
+        if price < 0:
+            raise ValueError
+    except ValueError:
+        errors.append("Enter a valid price.")
+        price = None
+
+    if errors:
+        for e in errors:
+            flash(e, "error")
+        return redirect(url_for("admin_settings"))
+
+    add_tariff(name, category, price, tariff_code=tariff_code, requires_preauth=requires_preauth)
+    flash("Service added.", "success")
+    return redirect(url_for("admin_settings"))
+
+
+@app.route("/admin/settings/tariffs/<int:tariff_id>/delete", methods=["POST"])
+def admin_settings_tariffs_delete(tariff_id):
+    redirect_response = require_admin("admin_ops", "write")
+    if redirect_response:
+        return redirect_response
+
+    delete_tariff(tariff_id)
+    flash("Service removed.", "success")
+    return redirect(url_for("admin_settings"))
+
+
+@app.route("/admin/settings/discounts/add", methods=["POST"])
+def admin_settings_discounts_add():
+    redirect_response = require_admin("admin_ops", "write")
+    if redirect_response:
+        return redirect_response
+
+    name = request.form.get("name", "").strip()
+    percentage_raw = request.form.get("percentage", "").strip()
+
+    errors = []
+    if not name:
+        errors.append("Enter a discount name.")
+    try:
+        percentage = float(percentage_raw)
+        if not (0 <= percentage <= 100):
+            raise ValueError
+    except ValueError:
+        errors.append("Enter a valid percentage between 0 and 100.")
+        percentage = None
+
+    if errors:
+        for e in errors:
+            flash(e, "error")
+        return redirect(url_for("admin_settings"))
+
+    add_discount_policy(name, percentage)
+    flash("Discount policy added.", "success")
+    return redirect(url_for("admin_settings"))
+
+
+@app.route("/admin/settings/discounts/<int:policy_id>/delete", methods=["POST"])
+def admin_settings_discounts_delete(policy_id):
+    redirect_response = require_admin("admin_ops", "write")
+    if redirect_response:
+        return redirect_response
+
+    delete_discount_policy(policy_id)
+    flash("Discount policy removed.", "success")
+    return redirect(url_for("admin_settings"))
+
+
+@app.route("/admin/settings/late-payment-fee", methods=["POST"])
+def admin_settings_late_payment_fee():
+    redirect_response = require_admin("admin_ops", "write")
+    if redirect_response:
+        return redirect_response
+
+    fee_raw = request.form.get("late_payment_fee", "").strip()
+    try:
+        fee = float(fee_raw) if fee_raw else 0.0
+        if fee < 0:
+            raise ValueError
+    except ValueError:
+        flash("Enter a valid late payment fee.", "error")
+        return redirect(url_for("admin_settings"))
+
+    update_late_payment_fee(fee)
+    flash("Late payment fee updated.", "success")
+    return redirect(url_for("admin_settings"))
+
+
+@app.route("/admin/settings/medical-aid/add", methods=["POST"])
+def admin_settings_medical_aid_add():
+    redirect_response = require_admin("admin_ops", "write")
+    if redirect_response:
+        return redirect_response
+
+    name = request.form.get("name", "").strip()
+    if not name:
+        flash("Enter a medical aid scheme name.", "error")
+        return redirect(url_for("admin_settings"))
+
+    add_medical_aid_scheme(name)
+    flash("Medical aid scheme added.", "success")
+    return redirect(url_for("admin_settings"))
+
+
+@app.route("/admin/settings/medical-aid/<int:scheme_id>/delete", methods=["POST"])
+def admin_settings_medical_aid_delete(scheme_id):
+    redirect_response = require_admin("admin_ops", "write")
+    if redirect_response:
+        return redirect_response
+
+    delete_medical_aid_scheme(scheme_id)
+    flash("Medical aid scheme removed.", "success")
+    return redirect(url_for("admin_settings"))
+
+
+@app.route("/admin/settings/medical-aid/<int:scheme_id>/toggle-direct-billing", methods=["POST"])
+def admin_settings_medical_aid_toggle(scheme_id):
+    redirect_response = require_admin("admin_ops", "write")
+    if redirect_response:
+        return redirect_response
+
+    toggle_direct_billing(scheme_id)
+    return redirect(url_for("admin_settings"))
+
+
+@app.route("/admin/settings/medical-aid-rates/add", methods=["POST"])
+def admin_settings_medical_aid_rates_add():
+    redirect_response = require_admin("admin_ops", "write")
+    if redirect_response:
+        return redirect_response
+
+    scheme_id_raw = request.form.get("scheme_id", "").strip()
+    tariff_id_raw = request.form.get("tariff_id", "").strip()
+    rate_raw = request.form.get("rate", "").strip()
+
+    errors = []
+    if not scheme_id_raw.isdigit() or db.session.get(MedicalAidScheme, int(scheme_id_raw)) is None:
+        errors.append("Choose a valid medical aid scheme.")
+    if not tariff_id_raw.isdigit() or db.session.get(ServiceTariff, int(tariff_id_raw)) is None:
+        errors.append("Choose a valid service.")
+    try:
+        rate = float(rate_raw)
+        if rate < 0:
+            raise ValueError
+    except ValueError:
+        errors.append("Enter a valid contracted rate.")
+        rate = None
+
+    if errors:
+        for e in errors:
+            flash(e, "error")
+        return redirect(url_for("admin_settings"))
+
+    set_medical_aid_rate(int(scheme_id_raw), int(tariff_id_raw), rate)
+    flash("Contracted rate saved.", "success")
+    return redirect(url_for("admin_settings"))
+
+
+@app.route("/admin/settings/medical-aid-rates/<int:rate_id>/delete", methods=["POST"])
+def admin_settings_medical_aid_rates_delete(rate_id):
+    redirect_response = require_admin("admin_ops", "write")
+    if redirect_response:
+        return redirect_response
+
+    delete_medical_aid_rate(rate_id)
+    flash("Contracted rate removed.", "success")
     return redirect(url_for("admin_settings"))
 
 

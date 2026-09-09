@@ -432,6 +432,7 @@ class ClinicSettings(db.Model):
     lab_technician_theme = db.Column(db.String(10), nullable=False, default="light")
     other_theme = db.Column(db.String(10), nullable=False, default="light")
     announcement = db.Column(db.Text, nullable=False, default="")
+    late_payment_fee = db.Column(db.Float, nullable=False, default=0.0)
 
 
 def get_settings() -> ClinicSettings:
@@ -471,6 +472,13 @@ def update_department_themes(themes: dict) -> ClinicSettings:
     settings = get_settings()
     for role, theme in themes.items():
         setattr(settings, f"{role}_theme", theme)
+    db.session.commit()
+    return settings
+
+
+def update_late_payment_fee(fee: float) -> ClinicSettings:
+    settings = get_settings()
+    settings.late_payment_fee = fee
     db.session.commit()
     return settings
 
@@ -900,3 +908,145 @@ def patient_lab_results(patient_id: int):
 
 def count_lab_results_by_technician(technician_id: int) -> int:
     return LabResult.query.filter_by(technician_id=technician_id).count()
+
+
+# -------------------- Billing & Finance: tariffs and medical aid schemes --------------------
+# Foundation only: the service/price catalog and the medical aid scheme catalog with
+# contracted rates. Patient invoicing, claims, and revenue reports build on top of this
+# once it exists, and aren't part of this pass.
+
+class ServiceTariff(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), unique=True, nullable=False)
+    category = db.Column(db.String(100), nullable=False, default="")
+    price = db.Column(db.Float, nullable=False)
+    tariff_code = db.Column(db.String(50), nullable=False, default="")
+    requires_preauth = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+
+def list_tariffs():
+    return ServiceTariff.query.order_by(ServiceTariff.category, ServiceTariff.name).all()
+
+
+def add_tariff(name: str, category: str, price: float, tariff_code: str = "", requires_preauth: bool = False) -> ServiceTariff:
+    tariff = ServiceTariff(
+        name=name, category=category, price=price, tariff_code=tariff_code, requires_preauth=requires_preauth
+    )
+    db.session.add(tariff)
+    db.session.commit()
+    return tariff
+
+
+def delete_tariff(tariff_id: int) -> None:
+    tariff = db.session.get(ServiceTariff, tariff_id)
+    if tariff:
+        db.session.delete(tariff)
+        db.session.commit()
+
+
+class DiscountPolicy(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    percentage = db.Column(db.Float, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+
+def list_discount_policies():
+    return DiscountPolicy.query.order_by(DiscountPolicy.name).all()
+
+
+def add_discount_policy(name: str, percentage: float) -> DiscountPolicy:
+    policy = DiscountPolicy(name=name, percentage=percentage)
+    db.session.add(policy)
+    db.session.commit()
+    return policy
+
+
+def delete_discount_policy(policy_id: int) -> None:
+    policy = db.session.get(DiscountPolicy, policy_id)
+    if policy:
+        db.session.delete(policy)
+        db.session.commit()
+
+
+class MedicalAidScheme(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), unique=True, nullable=False)
+    direct_billing_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+
+def list_medical_aid_schemes():
+    return MedicalAidScheme.query.order_by(MedicalAidScheme.name).all()
+
+
+def add_medical_aid_scheme(name: str) -> MedicalAidScheme:
+    scheme = MedicalAidScheme(name=name)
+    db.session.add(scheme)
+    db.session.commit()
+    return scheme
+
+
+def delete_medical_aid_scheme(scheme_id: int) -> None:
+    scheme = db.session.get(MedicalAidScheme, scheme_id)
+    if scheme:
+        db.session.delete(scheme)
+        db.session.commit()
+
+
+def toggle_direct_billing(scheme_id: int) -> None:
+    scheme = db.session.get(MedicalAidScheme, scheme_id)
+    if scheme:
+        scheme.direct_billing_enabled = not scheme.direct_billing_enabled
+        db.session.commit()
+
+
+def seed_medical_aid_schemes(names: list) -> None:
+    """Called once at startup. Adds any scheme names not already present;
+    never overwrites or removes existing schemes."""
+    existing = {s.name for s in MedicalAidScheme.query.all()}
+    for name in names:
+        if name not in existing:
+            db.session.add(MedicalAidScheme(name=name))
+    db.session.commit()
+
+
+class MedicalAidRate(db.Model):
+    """A negotiated rate for one service under one scheme. Absent here means
+    the scheme pays the standard ServiceTariff.price for that service."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    scheme_id = db.Column(db.Integer, db.ForeignKey("medical_aid_scheme.id"), nullable=False)
+    tariff_id = db.Column(db.Integer, db.ForeignKey("service_tariff.id"), nullable=False)
+    rate = db.Column(db.Float, nullable=False)
+
+    scheme = db.relationship("MedicalAidScheme")
+    tariff = db.relationship("ServiceTariff")
+
+    __table_args__ = (db.UniqueConstraint("scheme_id", "tariff_id"),)
+
+
+def list_medical_aid_rates():
+    return MedicalAidRate.query.join(MedicalAidScheme).join(ServiceTariff).order_by(
+        MedicalAidScheme.name, ServiceTariff.name
+    ).all()
+
+
+def set_medical_aid_rate(scheme_id: int, tariff_id: int, rate: float) -> MedicalAidRate:
+    existing = MedicalAidRate.query.filter_by(scheme_id=scheme_id, tariff_id=tariff_id).first()
+    if existing:
+        existing.rate = rate
+        db.session.commit()
+        return existing
+    entry = MedicalAidRate(scheme_id=scheme_id, tariff_id=tariff_id, rate=rate)
+    db.session.add(entry)
+    db.session.commit()
+    return entry
+
+
+def delete_medical_aid_rate(rate_id: int) -> None:
+    rate = db.session.get(MedicalAidRate, rate_id)
+    if rate:
+        db.session.delete(rate)
+        db.session.commit()
