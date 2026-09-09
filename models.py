@@ -683,13 +683,14 @@ def open_ticket_count() -> int:
 
 
 DEFAULT_DASHBOARD_WIDGETS = {
-    "admin": ["quick_actions", "dashboard_summary", "chart_new_patients", "chart_staff_pie", "chart_growth", "calendar"],
-    "doctor": ["dashboard_summary", "calendar"],
+    "admin": ["quick_actions", "dashboard_summary", "patient_volume_today", "chart_new_patients", "chart_staff_pie", "chart_growth", "calendar"],
+    "doctor": ["dashboard_summary", "patient_volume_today", "calendar"],
 }
 
 DASHBOARD_WIDGET_LABELS = {
     "quick_actions": "Quick actions",
     "dashboard_summary": "Dashboard summary",
+    "patient_volume_today": "Patient volume today",
     "chart_new_patients": "New patients chart",
     "chart_staff_pie": "Staff by role chart",
     "chart_growth": "Patient growth chart",
@@ -712,13 +713,25 @@ class DashboardLayout(db.Model):
 
 def get_dashboard_layout(role: str, staff_id: int):
     """List of {key, label, hidden} in the staff member's saved order.
-    Seeds their layout from the role's defaults on first access."""
+    Seeds their layout from the role's defaults on first access, and
+    backfills any default widget keys added since (e.g. a new widget
+    shipped after this staff member already had a saved layout)."""
     rows = DashboardLayout.query.filter_by(staff_role=role, staff_id=staff_id).order_by(DashboardLayout.position).all()
+    defaults = DEFAULT_DASHBOARD_WIDGETS.get(role, [])
     if not rows:
-        for i, key in enumerate(DEFAULT_DASHBOARD_WIDGETS.get(role, [])):
+        for i, key in enumerate(defaults):
             db.session.add(DashboardLayout(staff_role=role, staff_id=staff_id, widget_key=key, position=i))
         db.session.commit()
         rows = DashboardLayout.query.filter_by(staff_role=role, staff_id=staff_id).order_by(DashboardLayout.position).all()
+    else:
+        existing_keys = {r.widget_key for r in rows}
+        missing = [key for key in defaults if key not in existing_keys]
+        if missing:
+            next_position = max((r.position for r in rows), default=-1) + 1
+            for i, key in enumerate(missing):
+                db.session.add(DashboardLayout(staff_role=role, staff_id=staff_id, widget_key=key, position=next_position + i))
+            db.session.commit()
+            rows = DashboardLayout.query.filter_by(staff_role=role, staff_id=staff_id).order_by(DashboardLayout.position).all()
     return [{"key": r.widget_key, "label": DASHBOARD_WIDGET_LABELS.get(r.widget_key, r.widget_key), "hidden": r.hidden} for r in rows]
 
 
@@ -1083,3 +1096,80 @@ def patient_sick_notes(patient_id: int):
 
 def get_sick_note(note_id: int):
     return db.session.get(SickNote, note_id)
+
+
+# -------------------- Patient visit queue (check-in -> waiting -> in consultation -> discharged) --------------------
+
+VISIT_STATUSES = ["waiting", "in_consultation", "discharged"]
+VISIT_STATUS_LABELS = {
+    "waiting": "Waiting",
+    "in_consultation": "In consultation",
+    "discharged": "Discharged",
+}
+
+
+class Visit(db.Model):
+    """One row per patient check-in. A patient may have several Visit rows
+    over time (one per visit), but at most one active (non-discharged) at once."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey("patient.id"), nullable=False)
+    checked_in_by = db.Column(db.Integer, db.ForeignKey("staff.id"), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="waiting")
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    status_updated_at = db.Column(db.DateTime, default=datetime.now)
+
+    patient = db.relationship("Patient")
+    checked_in_staff = db.relationship("Staff", foreign_keys=[checked_in_by])
+
+
+def _today_start() -> datetime:
+    return datetime.combine(date.today(), datetime.min.time())
+
+
+def active_visit_for_patient(patient_id: int):
+    """The patient's current non-discharged visit, if any (today or carried
+    over from an earlier check-in that was never discharged)."""
+    return (
+        Visit.query.filter_by(patient_id=patient_id)
+        .filter(Visit.status != "discharged")
+        .order_by(Visit.created_at.desc())
+        .first()
+    )
+
+
+def check_in_patient(patient_id: int, staff_id: int):
+    """Creates a new visit unless the patient already has an active one.
+    Returns (visit, error_message) — error_message is None on success."""
+    if active_visit_for_patient(patient_id) is not None:
+        return None, "This patient is already checked in."
+    visit = Visit(patient_id=patient_id, checked_in_by=staff_id)
+    db.session.add(visit)
+    db.session.commit()
+    return visit, None
+
+
+def start_consultation(visit_id: int) -> None:
+    visit = db.session.get(Visit, visit_id)
+    if visit and visit.status == "waiting":
+        visit.status = "in_consultation"
+        visit.status_updated_at = datetime.now()
+        db.session.commit()
+
+
+def discharge_visit(visit_id: int) -> None:
+    visit = db.session.get(Visit, visit_id)
+    if visit and visit.status != "discharged":
+        visit.status = "discharged"
+        visit.status_updated_at = datetime.now()
+        db.session.commit()
+
+
+def patient_volume_today() -> dict:
+    """checked_in is the day's total (every visit created today, regardless
+    of current status); the other three are today's current-status counts."""
+    today_visits = Visit.query.filter(Visit.created_at >= _today_start()).all()
+    counts = {"checked_in": len(today_visits), "waiting": 0, "in_consultation": 0, "discharged": 0}
+    for visit in today_visits:
+        counts[visit.status] += 1
+    return counts

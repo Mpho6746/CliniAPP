@@ -145,6 +145,30 @@
         </div>
       </div>
 
+      {% elif w.key == "patient_volume_today" and volume %}
+      <div class="panel dash-widget-panel">
+        <h3 style="margin-top:0;">Patient volume today</h3>
+        <p class="sub">Real-time counts from today's check-ins.</p>
+        <div class="report-stats">
+          <div class="stat-card">
+            <div class="stat-value">{{ volume.checked_in }}</div>
+            <div class="stat-label">Checked in</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">{{ volume.waiting }}</div>
+            <div class="stat-label">{{ visit_status_labels.waiting }}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">{{ volume.in_consultation }}</div>
+            <div class="stat-label">{{ visit_status_labels.in_consultation }}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">{{ volume.discharged }}</div>
+            <div class="stat-label">{{ visit_status_labels.discharged }}</div>
+          </div>
+        </div>
+      </div>
+
       {% elif w.key == "chart_new_patients" and charts %}
       <div class="panel chart-panel dash-widget-panel">
         <h3>New patients per day</h3>

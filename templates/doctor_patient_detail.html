@@ -38,6 +38,21 @@
     {% if patient.next_appointment %}<p class="sub" style="margin-top:4px;">Next appointment: {{ patient.next_appointment }}</p>{% endif %}
     {% if patient.insurance_provider %}<p class="sub" style="margin-top:4px;">Medical aid: {{ patient.insurance_provider }}{% if patient.insurance_policy_number %} (#{{ patient.insurance_policy_number }}){% endif %}</p>{% endif %}
     {% if patient.emergency_contact_name %}<p class="sub" style="margin-top:4px;">Emergency contact: {{ patient.emergency_contact_name }}{% if patient.emergency_contact_phone %} — {{ patient.emergency_contact_phone }}{% endif %}</p>{% endif %}
+
+    {% if active_visit %}
+    <div style="margin-top:16px; display:flex; align-items:center; gap:10px;">
+      <span class="badge badge-visit-{{ active_visit.status }}"><span class="badge-dot"></span>{{ visit_status_labels[active_visit.status] }}</span>
+      {% if active_visit.status == "waiting" %}
+      <form method="POST" action="{{ url_for('doctor_start_consultation', patient_id=patient.id) }}">
+        <button type="submit" class="btn btn-primary btn-small">Start consultation</button>
+      </form>
+      {% elif active_visit.status == "in_consultation" %}
+      <form method="POST" action="{{ url_for('doctor_discharge_patient', patient_id=patient.id) }}">
+        <button type="submit" class="btn btn-secondary btn-small">Discharge</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
   </div>
 
   <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-top:20px;">

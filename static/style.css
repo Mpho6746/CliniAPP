@@ -868,6 +868,9 @@ a:hover { text-decoration: underline; }
 .badge-read_only   { color: #6B7280; background: rgba(107, 114, 128, 0.1); }
 .badge-clinical    { color: #2563EB; background: rgba(37, 99, 235, 0.1); }
 .badge-restricted  { color: #D97706; background: rgba(217, 119, 6, 0.1); }
+.badge-visit-waiting        { color: #D97706; background: rgba(217, 119, 6, 0.1); }
+.badge-visit-in_consultation { color: #2563EB; background: rgba(37, 99, 235, 0.1); }
+.badge-visit-discharged     { color: #16A34A; background: rgba(22, 163, 74, 0.1); }
 
 .settings-tabs {
   display: flex;

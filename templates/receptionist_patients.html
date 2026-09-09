@@ -83,6 +83,7 @@
           {{ ui.sortable_th("Next appointment", "next_appointment", sort, dir, "receptionist_patients", q, extra_args=sort_extra) }}
           {{ ui.sortable_th("Gender", "gender", sort, dir, "receptionist_patients", q, extra_args=sort_extra) }}
           {{ ui.sortable_th("Phone", "phone_number", sort, dir, "receptionist_patients", q, extra_args=sort_extra) }}
+          <th>Visit</th>
         </tr>
       </thead>
       <tbody>
@@ -113,6 +114,18 @@
             <span class="badge badge-{{ patient.gender|lower }}"><span class="badge-dot"></span>{{ patient.gender }}</span>
           </td>
           <td>{{ patient.phone_number }}</td>
+          <td>
+            {% set visit = active_visits[patient.id] %}
+            {% if visit %}
+            <span class="badge badge-visit-{{ visit.status }}"><span class="badge-dot"></span>{{ visit_status_labels[visit.status] }}</span>
+            {% elif can_check_in %}
+            <form method="POST" action="{{ url_for('receptionist_check_in', patient_id=patient.id) }}">
+              <button type="submit" class="btn btn-primary btn-small">Check in</button>
+            </form>
+            {% else %}
+            <span class="sub">Not checked in</span>
+            {% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>

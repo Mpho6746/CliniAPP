@@ -32,6 +32,7 @@ from models import (
     ServiceTariff,
     Staff,
     User,
+    VISIT_STATUS_LABELS,
     add_consultation,
     add_discount_policy,
     add_lab_result,
@@ -39,9 +40,11 @@ from models import (
     add_prescription,
     add_sick_note,
     add_tariff,
+    active_visit_for_patient,
     age_gender_breakdown,
     appointment_counts_for_month,
     appointments_on_date,
+    check_in_patient,
     count_consultations_by_doctor,
     count_lab_results_by_technician,
     count_prescriptions_by_doctor,
@@ -57,6 +60,7 @@ from models import (
     delete_patient,
     delete_tariff,
     demographics_summary,
+    discharge_visit,
     employee_number_taken,
     find_potential_duplicate_patients,
     find_staff_by_employee_number,
@@ -88,6 +92,7 @@ from models import (
     patient_missing_fields,
     patient_prescriptions,
     patient_sick_notes,
+    patient_volume_today,
     PATIENT_STATUSES,
     patient_number_taken,
     recent_activity,
@@ -99,6 +104,7 @@ from models import (
     seed_medical_aid_schemes,
     set_medical_aid_rate,
     staff_counts_by_role,
+    start_consultation,
     theme_for_role,
     toggle_dashboard_widget,
     toggle_direct_billing,
@@ -598,12 +604,14 @@ def workspace():
             "unread_notes": unread_notes_count("doctor", staff.id),
         }
 
+    volume = None
     if role in DEFAULT_DASHBOARD_WIDGETS:
         today = date.today()
         cal_year = request.args.get("cal_year", type=int) or today.year
         cal_month = request.args.get("cal_month", type=int) or today.month
         calendar_widget = _build_calendar_widget(cal_year, cal_month)
         layout = get_dashboard_layout(role, staff.id)
+        volume = patient_volume_today()
 
     return render_template(
         "workspace.html",
@@ -615,6 +623,8 @@ def workspace():
         charts=charts,
         calendar_widget=calendar_widget,
         layout=layout,
+        volume=volume,
+        visit_status_labels=VISIT_STATUS_LABELS,
     )
 
 
@@ -1467,6 +1477,7 @@ def doctor_patients():
     missing_fields = {patient.id: patient_missing_fields(patient) for patient in patients}
     overdue = {patient.id: is_overdue(patient) for patient in patients}
     unread_by_patient = unread_notes_by_patient("doctor", staff.id)
+    active_visits = {patient.id: active_visit_for_patient(patient.id) for patient in patients}
     return render_template(
         "doctor_patients.html",
         patients=patients,
@@ -1482,6 +1493,9 @@ def doctor_patients():
         missing_fields=missing_fields,
         overdue=overdue,
         unread_by_patient=unread_by_patient,
+        active_visits=active_visits,
+        visit_status_labels=VISIT_STATUS_LABELS,
+        can_manage_visits=has_access(staff, "patients", "write"),
     )
 
 
@@ -1541,7 +1555,49 @@ def doctor_patient_detail(patient_id):
         missing_fields=patient_missing_fields(patient),
         overdue=is_overdue(patient),
         ai_configured=ai_assistant.is_configured(),
+        active_visit=active_visit_for_patient(patient.id),
+        visit_status_labels=VISIT_STATUS_LABELS,
     )
+
+
+@app.route("/doctor/patients/<int:patient_id>/start-consultation", methods=["POST"])
+def doctor_start_consultation(patient_id):
+    redirect_response = require_doctor("patients", "write")
+    if redirect_response:
+        return redirect_response
+
+    patient = get_patient(patient_id)
+    if patient is None:
+        flash("Patient not found.", "error")
+        return redirect(url_for("doctor_patients"))
+
+    visit = active_visit_for_patient(patient.id)
+    if visit is None or visit.status != "waiting":
+        flash("This patient isn't waiting to be seen.", "error")
+    else:
+        start_consultation(visit.id)
+        flash(f"Consultation started for {patient.full_name}.", "success")
+    return redirect(request.referrer or url_for("doctor_patients"))
+
+
+@app.route("/doctor/patients/<int:patient_id>/discharge", methods=["POST"])
+def doctor_discharge_patient(patient_id):
+    redirect_response = require_doctor("patients", "write")
+    if redirect_response:
+        return redirect_response
+
+    patient = get_patient(patient_id)
+    if patient is None:
+        flash("Patient not found.", "error")
+        return redirect(url_for("doctor_patients"))
+
+    visit = active_visit_for_patient(patient.id)
+    if visit is None or visit.status != "in_consultation":
+        flash("This patient isn't currently in consultation.", "error")
+    else:
+        discharge_visit(visit.id)
+        flash(f"{patient.full_name} discharged.", "success")
+    return redirect(request.referrer or url_for("doctor_patients"))
 
 
 @app.route("/doctor/patients/<int:patient_id>/ai-suggestions", methods=["POST"])
@@ -1582,6 +1638,8 @@ def doctor_ai_suggestions(patient_id):
         ai_configured=ai_assistant.is_configured(),
         ai_suggestions=ai_suggestions,
         notes_draft=notes_draft,
+        active_visit=active_visit_for_patient(patient.id),
+        visit_status_labels=VISIT_STATUS_LABELS,
     )
 
 
@@ -1658,6 +1716,7 @@ def receptionist_patients():
     patients, last_visits, sort, direction, filters, pagination, page_args = _patients_for_list(q)
     missing_fields = {patient.id: patient_missing_fields(patient) for patient in patients}
     overdue = {patient.id: is_overdue(patient) for patient in patients}
+    active_visits = {patient.id: active_visit_for_patient(patient.id) for patient in patients}
     return render_template(
         "receptionist_patients.html",
         patients=patients,
@@ -1672,7 +1731,27 @@ def receptionist_patients():
         page_args=page_args,
         missing_fields=missing_fields,
         overdue=overdue,
+        active_visits=active_visits,
+        visit_status_labels=VISIT_STATUS_LABELS,
+        can_check_in=has_access(staff, "patients", "write"),
     )
+
+
+@app.route("/receptionist/patients/<int:patient_id>/check-in", methods=["POST"])
+def receptionist_check_in(patient_id):
+    redirect_response = require_role("receptionist", "patients", "write")
+    if redirect_response:
+        return redirect_response
+    _, staff = current_staff()
+
+    patient = get_patient(patient_id)
+    if patient is None:
+        flash("Patient not found.", "error")
+        return redirect(url_for("receptionist_patients"))
+
+    _, error = check_in_patient(patient.id, staff.id)
+    flash(error or f"{patient.full_name} checked in.", "error" if error else "success")
+    return redirect(url_for("receptionist_patients"))
 
 
 # -------------------- Lab Technician: record & view lab results --------------------

@@ -93,6 +93,7 @@
           {{ ui.sortable_th("Next appointment", "next_appointment", sort, dir, "doctor_patients", q, col="next_appointment", extra_args=sort_extra) }}
           {{ ui.sortable_th("Gender", "gender", sort, dir, "doctor_patients", q, col="gender", extra_args=sort_extra) }}
           {{ ui.sortable_th("Phone", "phone_number", sort, dir, "doctor_patients", q, col="phone", extra_args=sort_extra) }}
+          <th>Visit</th>
           <th></th>
         </tr>
       </thead>
@@ -127,6 +128,26 @@
             <span class="badge badge-{{ patient.gender|lower }}"><span class="badge-dot"></span>{{ patient.gender }}</span>
           </td>
           <td data-col="phone">{{ patient.phone_number }}</td>
+          <td onclick="event.stopPropagation();">
+            {% set visit = active_visits[patient.id] %}
+            {% if visit and visit.status == "waiting" %}
+            <span class="badge badge-visit-waiting" style="margin-right:6px;"><span class="badge-dot"></span>{{ visit_status_labels.waiting }}</span>
+            {% if can_manage_visits %}
+            <form method="POST" action="{{ url_for('doctor_start_consultation', patient_id=patient.id) }}" style="display:inline;">
+              <button type="submit" class="btn btn-primary btn-small">Start</button>
+            </form>
+            {% endif %}
+            {% elif visit and visit.status == "in_consultation" %}
+            <span class="badge badge-visit-in_consultation" style="margin-right:6px;"><span class="badge-dot"></span>{{ visit_status_labels.in_consultation }}</span>
+            {% if can_manage_visits %}
+            <form method="POST" action="{{ url_for('doctor_discharge_patient', patient_id=patient.id) }}" style="display:inline;">
+              <button type="submit" class="btn btn-secondary btn-small">Discharge</button>
+            </form>
+            {% endif %}
+            {% else %}
+            <span class="sub">—</span>
+            {% endif %}
+          </td>
           <td onclick="event.stopPropagation();">
             <a href="{{ url_for('doctor_patient_detail', patient_id=patient.id) }}" class="btn btn-secondary btn-small">View</a>
           </td>
