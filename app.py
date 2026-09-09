@@ -1100,6 +1100,8 @@ def admin_settings():
         settings=get_settings(),
         staff=staff,
         staff_labels=STAFF_LABELS,
+        all_staff=Staff.query.order_by(Staff.role, Staff.full_name).all(),
+        access_level_labels=ACCESS_LEVEL_LABELS,
     )
 
 

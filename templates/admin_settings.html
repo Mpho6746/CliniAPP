@@ -15,81 +15,190 @@
 
 {{ ui.announcement_banner(announcement) }}
 <div class="shell-container">
-  <div class="panel panel-narrow">
-  <h1>Settings</h1>
-  <p class="sub">Clinic profile, staff PIN policy, and your account password.</p>
+  <div class="panel">
+    <h1>Settings</h1>
+    <p class="sub" style="margin-bottom:0;">Manage your clinic's profile, staff, and account security.</p>
 
-  <h2>Clinic profile</h2>
-  <form method="POST" action="{{ url_for('admin_settings_profile') }}">
-    <div class="field">
-      <label for="hospital_name">Hospital name</label>
-      <input type="text" id="hospital_name" name="hospital_name" value="{{ user.hospital_name }}" required>
+    <div class="settings-tabs" id="settings-tabs">
+      <button type="button" class="settings-tab-btn" data-tab="profile">Hospital Profile</button>
+      <button type="button" class="settings-tab-btn" data-tab="staff">Staff Management</button>
+      <button type="button" class="settings-tab-btn" data-tab="security">Security &amp; Access</button>
+      <button type="button" class="settings-tab-btn" data-tab="clinical">Clinical Settings</button>
+      <button type="button" class="settings-tab-btn" data-tab="billing">Billing &amp; Finance</button>
+      <button type="button" class="settings-tab-btn" data-tab="operations">Operations</button>
+      <button type="button" class="settings-tab-btn" data-tab="communications">Communications</button>
     </div>
-    <div class="field">
-      <label for="address">Address</label>
-      <input type="text" id="address" name="address" value="{{ settings.address }}">
-    </div>
-    <div class="field">
-      <label for="phone_number">Phone number</label>
-      <input type="text" id="phone_number" name="phone_number" value="{{ settings.phone_number }}">
-    </div>
-    <div class="field">
-      <label for="operating_hours">Operating hours</label>
-      <input type="text" id="operating_hours" name="operating_hours" value="{{ settings.operating_hours }}" placeholder="e.g. Mon–Fri 08:00–18:00">
-    </div>
-    <button type="submit" class="btn btn-primary">Save profile</button>
-  </form>
 
-  <h2>Staff PIN policy</h2>
-  <form method="POST" action="{{ url_for('admin_settings_pin_policy') }}">
-    <div class="field">
-      <label for="pin_length">PIN length (4–8 digits)</label>
-      <input type="number" id="pin_length" name="pin_length" min="4" max="8" value="{{ settings.pin_length }}" required>
+    <div class="settings-tab-panel" data-tab-panel="profile">
+      <h2 style="margin-top:0;">Hospital profile</h2>
+      <form method="POST" action="{{ url_for('admin_settings_profile') }}">
+        <div class="field">
+          <label for="hospital_name">Hospital name</label>
+          <input type="text" id="hospital_name" name="hospital_name" value="{{ user.hospital_name }}" required>
+        </div>
+        <div class="field">
+          <label for="address">Address</label>
+          <input type="text" id="address" name="address" value="{{ settings.address }}">
+        </div>
+        <div class="field">
+          <label for="phone_number">Phone number</label>
+          <input type="text" id="phone_number" name="phone_number" value="{{ settings.phone_number }}">
+        </div>
+        <div class="field">
+          <label for="operating_hours">Operating hours</label>
+          <input type="text" id="operating_hours" name="operating_hours" value="{{ settings.operating_hours }}" placeholder="e.g. Mon–Fri 08:00–18:00">
+        </div>
+        <button type="submit" class="btn btn-primary">Save profile</button>
+      </form>
     </div>
-    <button type="submit" class="btn btn-primary">Save PIN policy</button>
-  </form>
 
-  <h2>Department themes</h2>
-  <p class="sub" style="margin-bottom:16px;">Choose light or dark mode for each department's workspace.</p>
-  <form method="POST" action="{{ url_for('admin_settings_themes') }}">
-    {% for role, label in staff_labels.items() %}
-    <div class="field">
-      <label for="{{ role }}_theme">{{ label }}</label>
-      <select id="{{ role }}_theme" name="{{ role }}_theme">
-        <option value="light" {% if settings[role ~ '_theme'] == 'light' %}selected{% endif %}>Light</option>
-        <option value="dark" {% if settings[role ~ '_theme'] == 'dark' %}selected{% endif %}>Dark</option>
-      </select>
+    <div class="settings-tab-panel" data-tab-panel="staff" hidden>
+      <div class="panel-header" style="padding:0; border:none;">
+        <div>
+          <h2 style="margin-top:0;">Staff directory</h2>
+          <p class="sub">{{ all_staff|length }} staff member{{ 's' if all_staff|length != 1 }}.</p>
+        </div>
+        <div class="panel-header-actions">
+          <a href="{{ url_for('staff_register') }}" class="btn btn-primary btn-small">{{ ui.icon('user-plus', 14) }} Add staff</a>
+        </div>
+      </div>
+      {% if all_staff %}
+      <div class="table-scroll">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Employee #</th>
+            <th>Role</th>
+            <th>Access level</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for member in all_staff %}
+          <tr>
+            <td>
+              <div class="table-avatar-cell">
+                <div class="table-avatar">{{ ui.initials(member.full_name) }}</div>
+                {{ member.full_name }}
+              </div>
+            </td>
+            <td>{{ member.employee_number }}</td>
+            <td>{{ staff_labels[member.role] }}</td>
+            <td><span class="badge badge-{{ member.access_level }}"><span class="badge-dot"></span>{{ access_level_labels[member.access_level] }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% else %}
+      <div class="empty-state">No staff members yet.</div>
+      {% endif %}
     </div>
-    {% endfor %}
-    <button type="submit" class="btn btn-primary">Save themes</button>
-  </form>
 
-  <h2>Announcement</h2>
-  <p class="sub" style="margin-bottom:16px;">Shows as a banner on every department's Overview page. Leave blank to remove it.</p>
-  <form method="POST" action="{{ url_for('admin_settings_announcement') }}">
-    <div class="field">
-      <label for="announcement">Message</label>
-      <textarea id="announcement" name="announcement" rows="3" placeholder="e.g. The clinic will close early on Friday for maintenance." style="width:100%; padding:11px 12px; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:14.5px; background:var(--surface-2); color:var(--ink); resize:vertical;">{{ settings.announcement }}</textarea>
-    </div>
-    <button type="submit" class="btn btn-primary">Save announcement</button>
-  </form>
+    <div class="settings-tab-panel" data-tab-panel="security" hidden>
+      <h2 style="margin-top:0;">Staff PIN policy</h2>
+      <form method="POST" action="{{ url_for('admin_settings_pin_policy') }}">
+        <div class="field">
+          <label for="pin_length">PIN length (4–8 digits)</label>
+          <input type="number" id="pin_length" name="pin_length" min="4" max="8" value="{{ settings.pin_length }}" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Save PIN policy</button>
+      </form>
 
-  <h2>Change password</h2>
-  <form method="POST" action="{{ url_for('admin_settings_password') }}">
-    <div class="field">
-      <label for="current_password">Current password</label>
-      <input type="password" id="current_password" name="current_password" required>
+      <h2 style="margin-top:28px;">Department themes</h2>
+      <p class="sub" style="margin-bottom:16px;">Choose light or dark mode for each department's workspace.</p>
+      <form method="POST" action="{{ url_for('admin_settings_themes') }}">
+        {% for role, label in staff_labels.items() %}
+        <div class="field">
+          <label for="{{ role }}_theme">{{ label }}</label>
+          <select id="{{ role }}_theme" name="{{ role }}_theme">
+            <option value="light" {% if settings[role ~ '_theme'] == 'light' %}selected{% endif %}>Light</option>
+            <option value="dark" {% if settings[role ~ '_theme'] == 'dark' %}selected{% endif %}>Dark</option>
+          </select>
+        </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary">Save themes</button>
+      </form>
+
+      <h2 style="margin-top:28px;">Change password</h2>
+      <form method="POST" action="{{ url_for('admin_settings_password') }}">
+        <div class="field">
+          <label for="current_password">Current password</label>
+          <input type="password" id="current_password" name="current_password" required>
+        </div>
+        <div class="field">
+          <label for="new_password">New password</label>
+          <input type="password" id="new_password" name="new_password" minlength="6" required>
+        </div>
+        <div class="field">
+          <label for="confirm">Confirm new password</label>
+          <input type="password" id="confirm" name="confirm" minlength="6" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Change password</button>
+      </form>
     </div>
-    <div class="field">
-      <label for="new_password">New password</label>
-      <input type="password" id="new_password" name="new_password" minlength="6" required>
+
+    <div class="settings-tab-panel" data-tab-panel="clinical" hidden>
+      <h2 style="margin-top:0;">Clinical settings</h2>
+      <div class="empty-state">Not set up yet.</div>
     </div>
-    <div class="field">
-      <label for="confirm">Confirm new password</label>
-      <input type="password" id="confirm" name="confirm" minlength="6" required>
+
+    <div class="settings-tab-panel" data-tab-panel="billing" hidden>
+      <h2 style="margin-top:0;">Billing &amp; finance</h2>
+      <div class="empty-state">Not set up yet.</div>
     </div>
-    <button type="submit" class="btn btn-primary">Change password</button>
-  </form>
+
+    <div class="settings-tab-panel" data-tab-panel="operations" hidden>
+      <h2 style="margin-top:0;">Operations</h2>
+      <div class="empty-state">Not set up yet.</div>
+    </div>
+
+    <div class="settings-tab-panel" data-tab-panel="communications" hidden>
+      <h2 style="margin-top:0;">Announcement</h2>
+      <p class="sub" style="margin-bottom:16px;">Shows as a banner on every department's Overview page. Leave blank to remove it.</p>
+      <form method="POST" action="{{ url_for('admin_settings_announcement') }}">
+        <div class="field">
+          <label for="announcement">Message</label>
+          <textarea id="announcement" name="announcement" rows="3" placeholder="e.g. The clinic will close early on Friday for maintenance." style="width:100%; padding:11px 12px; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:14.5px; background:var(--surface-2); color:var(--ink); resize:vertical;">{{ settings.announcement }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Save announcement</button>
+      </form>
+    </div>
   </div>
 </div>
+
+<script>
+(function () {
+  var STORAGE_KEY = 'admin_settings_active_tab';
+  var tabs = document.querySelectorAll('#settings-tabs .settings-tab-btn');
+  var panels = document.querySelectorAll('.settings-tab-panel');
+
+  function activate(key) {
+    var found = false;
+    tabs.forEach(function (btn) {
+      var match = btn.getAttribute('data-tab') === key;
+      btn.classList.toggle('active', match);
+      if (match) found = true;
+    });
+    if (!found) key = tabs[0].getAttribute('data-tab');
+    tabs.forEach(function (btn) {
+      btn.classList.toggle('active', btn.getAttribute('data-tab') === key);
+    });
+    panels.forEach(function (panel) {
+      panel.hidden = panel.getAttribute('data-tab-panel') !== key;
+    });
+    try { localStorage.setItem(STORAGE_KEY, key); } catch (e) {}
+  }
+
+  tabs.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      activate(btn.getAttribute('data-tab'));
+    });
+  });
+
+  var saved = null;
+  try { saved = localStorage.getItem(STORAGE_KEY); } catch (e) {}
+  activate(saved || tabs[0].getAttribute('data-tab'));
+})();
+</script>
 {% endblock %}
