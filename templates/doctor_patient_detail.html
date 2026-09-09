@@ -47,10 +47,25 @@
         <input type="hidden" name="form_name" value="consultation">
         <div class="field">
           <label for="notes">Notes</label>
-          <textarea id="notes" name="notes" rows="4" required style="width:100%; padding:11px 12px; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:14.5px; background:var(--surface-2); color:var(--ink); resize:vertical;"></textarea>
+          <textarea id="notes" name="notes" rows="4" required style="width:100%; padding:11px 12px; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:14.5px; background:var(--surface-2); color:var(--ink); resize:vertical;">{{ notes_draft or '' }}</textarea>
         </div>
-        <button type="submit" class="btn btn-primary">Add note</button>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button type="submit" class="btn btn-primary">Add note</button>
+          {% if ai_configured %}
+          <button type="submit" formaction="{{ url_for('doctor_ai_suggestions', patient_id=patient.id) }}" class="btn btn-secondary">Get AI suggestions</button>
+          {% else %}
+          <button type="button" class="btn btn-secondary" disabled title="Set ANTHROPIC_API_KEY on the server to enable this">Get AI suggestions (not configured)</button>
+          {% endif %}
+        </div>
       </form>
+
+      {% if ai_suggestions %}
+      <div class="panel" style="margin-top:16px; background:var(--surface-2);">
+        <h3 style="margin-top:0;">AI suggestions</h3>
+        <p class="sub" style="margin-bottom:12px;">Informational only — not a diagnosis. Always apply your own clinical judgment. Only the notes text above was sent; no patient identifiers were included.</p>
+        <pre style="white-space:pre-wrap; font-family:inherit; font-size:14px; margin:0; color:var(--ink);">{{ ai_suggestions }}</pre>
+      </div>
+      {% endif %}
     </div>
 
     <div class="panel">

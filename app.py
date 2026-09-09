@@ -17,6 +17,7 @@ from datetime import date, datetime, timedelta
 from flask import Flask, Response, flash, redirect, render_template, request, session, url_for
 from openpyxl import Workbook
 
+import ai_assistant
 from charts import bar_chart, line_chart, month_grid, pie_chart
 
 from models import (
@@ -1534,6 +1535,47 @@ def doctor_patient_detail(patient_id):
         lab_results=patient_lab_results(patient.id),
         missing_fields=patient_missing_fields(patient),
         overdue=is_overdue(patient),
+        ai_configured=ai_assistant.is_configured(),
+    )
+
+
+@app.route("/doctor/patients/<int:patient_id>/ai-suggestions", methods=["POST"])
+def doctor_ai_suggestions(patient_id):
+    """Advisory-only suggestions on the notes text the doctor has typed so
+    far. Never saved, never sent with the patient's name/number/any other
+    identifier — only the free-text notes leave the server."""
+    redirect_response = require_doctor("patients", "view")
+    if redirect_response:
+        return redirect_response
+    _, staff = current_staff()
+
+    patient = get_patient(patient_id)
+    if patient is None:
+        flash("Patient not found.", "error")
+        return redirect(url_for("doctor_patients"))
+
+    notes_draft = request.form.get("notes", "").strip()
+    ai_suggestions = None
+    if not notes_draft:
+        flash("Enter some notes first to get AI suggestions.", "error")
+    else:
+        try:
+            ai_suggestions = ai_assistant.get_suggestions(notes_draft)
+        except RuntimeError as e:
+            flash(str(e), "error")
+
+    return render_template(
+        "doctor_patient_detail.html",
+        patient=patient,
+        staff=staff,
+        consultations=patient_consultations(patient.id),
+        prescriptions=patient_prescriptions(patient.id),
+        lab_results=patient_lab_results(patient.id),
+        missing_fields=patient_missing_fields(patient),
+        overdue=is_overdue(patient),
+        ai_configured=ai_assistant.is_configured(),
+        ai_suggestions=ai_suggestions,
+        notes_draft=notes_draft,
     )
 
 
