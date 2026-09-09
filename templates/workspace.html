@@ -33,14 +33,7 @@
 {{ ui.announcement_banner(announcement) }}
 
 <div class="shell-container">
-  {% if role == "doctor" %}
-  <div class="panel panel-narrow" style="text-align:center;">
-    <div class="avatar-circle" style="width:56px; height:56px; font-size:18px; margin:0 auto 16px;">{{ ui.initials(staff.full_name) }}</div>
-    <h1>{{ role_label }} workspace</h1>
-    <p class="sub">Welcome, {{ staff.full_name }} (#{{ staff.employee_number }}).</p>
-    <a href="{{ url_for('doctor_patients') }}" class="btn btn-primary" style="margin-top:20px;">View patients</a>
-  </div>
-  {% elif role == "receptionist" %}
+  {% if role == "receptionist" %}
   <div class="panel panel-narrow" style="text-align:center;">
     <div class="avatar-circle" style="width:56px; height:56px; font-size:18px; margin:0 auto 16px;">{{ ui.initials(staff.full_name) }}</div>
     <h1>{{ role_label }} workspace</h1>
@@ -64,7 +57,7 @@
   {% endif %}
 
   {% if layout %}
-  <div class="panel" style="{% if role == 'doctor' %}margin-top:20px;{% endif %}">
+  <div class="panel">
     <h3 style="margin-top:0;">Dashboard widgets</h3>
     <p class="sub">Drag a widget below to reorder it. Pin/unpin to show or hide it.</p>
     <div class="widget-toggle-list">
