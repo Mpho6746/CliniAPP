@@ -18,6 +18,7 @@ from flask import Flask, Response, flash, redirect, render_template, request, se
 from openpyxl import Workbook
 
 import ai_assistant
+import ml_heart_disease
 from charts import bar_chart, line_chart, month_grid, pie_chart
 
 from models import (
@@ -1701,6 +1702,62 @@ def doctor_sick_note_print(patient_id, note_id):
         doctor=note.doctor,
         hospital=current_user(),
         settings=get_settings(),
+    )
+
+
+@app.route("/doctor/patients/<int:patient_id>/heart-risk", methods=["GET", "POST"])
+def doctor_heart_risk(patient_id):
+    """Screening aid only — never a diagnosis. Trained on the real UCI
+    Heart Disease (Cleveland) dataset; nothing here is saved to the
+    patient record, and every result is shown with the model's real
+    cross-validated accuracy so the doctor can judge how much to weigh it."""
+    redirect_response = require_doctor("patients", "view")
+    if redirect_response:
+        return redirect_response
+    _, staff = current_staff()
+
+    patient = get_patient(patient_id)
+    if patient is None:
+        flash("Patient not found.", "error")
+        return redirect(url_for("doctor_patients"))
+
+    result = None
+    form_values = {}
+    meta = ml_heart_disease.model_meta() if ml_heart_disease.is_available() else None
+
+    if request.method == "POST" and meta:
+        errors = []
+        for name, label, kind, extra in ml_heart_disease.FIELDS:
+            raw = request.form.get(name, "").strip()
+            form_values[name] = raw
+            if not raw:
+                errors.append(f"Enter {label.lower()}.")
+                continue
+            try:
+                value = float(raw)
+            except ValueError:
+                errors.append(f"{label} must be a number.")
+                continue
+            if kind in ("number", "decimal"):
+                low, high = extra
+                if not (low <= value <= high):
+                    errors.append(f"{label} should be between {low} and {high}.")
+
+        if errors:
+            for e in errors:
+                flash(e, "error")
+        else:
+            features = {name: float(form_values[name]) for name, _, _, _ in ml_heart_disease.FIELDS}
+            result = ml_heart_disease.predict(features)
+
+    return render_template(
+        "heart_risk.html",
+        patient=patient,
+        staff=staff,
+        fields=ml_heart_disease.FIELDS,
+        form_values=form_values,
+        result=result,
+        meta=meta,
     )
 
 

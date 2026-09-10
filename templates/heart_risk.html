@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}Heart Disease Risk Screening — CliniApp{% endblock %}
+{% block page_class %}shell{% endblock %}
+
+{% block content %}
+{{ ui.topbar(staff.full_name, "Doctor", show_search=true, search_action=url_for('search'), help_url=url_for('help_center'), switch_url=url_for('staff_logout'), logout_url=url_for('logout'), theme=theme, notifications=notifications) }}
+{{ ui.tab_nav([
+  ("overview", "Overview", "workspace"),
+  ("patients", "Patients", "doctor_patients"),
+], "patients") }}
+
+{{ ui.announcement_banner(announcement) }}
+<div class="shell-container">
+  <div class="panel panel-narrow">
+    <div class="panel-header">
+      <div>
+        <h1>Heart disease risk screening</h1>
+        <p class="sub">For {{ patient.full_name }} (#{{ patient.patient_number }})</p>
+      </div>
+      <div class="panel-header-actions">
+        <a href="{{ url_for('doctor_patient_detail', patient_id=patient.id) }}" class="btn btn-secondary btn-small">Back to patient</a>
+      </div>
+    </div>
+
+    {% if not meta %}
+    <div class="empty-state">The screening model isn't available on this server.</div>
+    {% else %}
+    <p class="sub" style="margin-top:12px;">
+      Screening aid only — not a diagnosis. Trained on {{ meta.n_samples }} real patient records from the
+      {{ meta.dataset }} dataset. 5-fold cross-validated accuracy: {{ "%.1f"|format(meta.cv_accuracy_mean * 100) }}%
+      (± {{ "%.1f"|format(meta.cv_accuracy_std * 100) }}%). Always apply clinical judgment and confirm with further testing.
+    </p>
+
+    {% if result %}
+    <div class="panel" style="margin-top:16px; background:var(--surface-2);">
+      <h3 style="margin-top:0;">Result</h3>
+      <p style="font-size:18px; font-weight:600; margin:0 0 4px;">{{ result.risk_label }}</p>
+      <p class="sub" style="margin:0;">Model probability: {{ "%.0f"|format(result.probability * 100) }}%</p>
+    </div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('doctor_heart_risk', patient_id=patient.id) }}" style="margin-top:20px;">
+      {% for name, label, kind, extra in fields %}
+      <div class="field">
+        <label for="{{ name }}">{{ label }}</label>
+        {% if kind == "select" %}
+        <select id="{{ name }}" name="{{ name }}" required>
+          <option value="" disabled {% if not form_values.get(name) %}selected{% endif %}>— Choose —</option>
+          {% for value, option_label in extra %}
+          <option value="{{ value }}" {% if form_values.get(name)|string == value|string %}selected{% endif %}>{{ option_label }}</option>
+          {% endfor %}
+        </select>
+        {% elif kind == "decimal" %}
+        <input type="number" id="{{ name }}" name="{{ name }}" step="0.1" min="{{ extra[0] }}" max="{{ extra[1] }}" value="{{ form_values.get(name, '') }}" required>
+        {% else %}
+        <input type="number" id="{{ name }}" name="{{ name }}" min="{{ extra[0] }}" max="{{ extra[1] }}" value="{{ form_values.get(name, '') }}" required>
+        {% endif %}
+      </div>
+      {% endfor %}
+      <button type="submit" class="btn btn-primary">Run screening</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

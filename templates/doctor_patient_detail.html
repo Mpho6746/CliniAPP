@@ -28,6 +28,7 @@
         </div>
       </div>
       <div class="panel-header-actions">
+        <a href="{{ url_for('doctor_heart_risk', patient_id=patient.id) }}" class="btn btn-secondary btn-small">Heart disease risk screening</a>
         <a href="{{ url_for('doctor_patients') }}" class="btn btn-secondary btn-small">Back to patients</a>
       </div>
     </div>
